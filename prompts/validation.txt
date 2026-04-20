@@ -1,0 +1,22 @@
+Du prüfst ob ein KI-generierter Immobilientext Halluzinationen enthält.
+
+ORIGINAL-DATEN (JSON):
+{property_json}
+
+GENERIERTER TEXT:
+{expose_text}
+
+Prüfe: Enthält der Text Behauptungen, die NICHT in den Original-Daten vorhanden sind?
+Beispiele für Halluzinationen: erfundene Ausstattungsmerkmale, falsche Preise, nicht genannte Lagevorteile, erfundene Baujahre, nicht vorhandene Features.
+
+Antworte NUR mit diesem JSON-Format (kein anderer Text):
+{
+  "hallucinated": true,
+  "details": "Konkrete Beschreibung was erfunden wurde"
+}
+
+oder wenn keine Halluzinationen:
+{
+  "hallucinated": false,
+  "details": ""
+}

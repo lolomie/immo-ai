@@ -1,0 +1,15 @@
+{
+  "property_id": "PROP-001",
+  "address": "Musterstraße 42",
+  "city": "München",
+  "zip_code": "80331",
+  "property_type": "Wohnung",
+  "size_sqm": 78.5,
+  "rooms": 3.0,
+  "purchase_price": 485000,
+  "monthly_rent": null,
+  "year_built": 1998,
+  "energy_class": "C",
+  "features": ["Balkon", "Einbauküche", "Tiefgaragenstellplatz", "Aufzug"],
+  "notes": "Eigentümer möchte schnell verkaufen, Preis leicht verhandelbar."
+}

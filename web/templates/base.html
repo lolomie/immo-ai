@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Immo AI{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="/"><span>Immo</span> AI</a>
+  <ul class="nav-links">
+    <li><a href="/#wie-es-funktioniert">So funktioniert's</a></li>
+    <li><a href="/#preise">Preise</a></li>
+    <li><a href="/generate">Generator</a></li>
+    <li><a href="/review">Review</a></li>
+    <li><a class="nav-cta" href="/#kontakt">Demo anfragen</a></li>
+  </ul>
+</nav>
+
+{% block content %}{% endblock %}
+
+<footer>
+  <p>© 2025 Immo AI &nbsp;·&nbsp; <a href="/#kontakt">Kontakt</a> &nbsp;·&nbsp; Alle Exposés erfordern menschliche Freigabe.</p>
+</footer>
+
+</body>
+</html>

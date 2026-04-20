@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block title %}Review — Immo AI{% endblock %}
+
+{% block content %}
+
+<div class="app-header">
+  <h1>Exposé-Review</h1>
+  <p>Ausstehende Exposés prüfen, freigeben oder ablehnen.</p>
+</div>
+
+<div class="app-body">
+
+  <div class="review-summary">
+    <div>
+      <div class="pending-count"><span id="pendingCount">–</span> ausstehend</div>
+      <div style="font-size:.875rem; color:var(--slate); margin-top:.2rem;">
+        Kein Exposé wird ohne Ihre Freigabe veröffentlicht.
+      </div>
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="loadJobs()">↻ Aktualisieren</button>
+  </div>
+
+  <div class="alert alert-info" style="margin-bottom:1.5rem;">
+    ⚠️ Alle Exposés sind KI-generiert. Prüfen Sie jeden Text sorgfältig vor der Freigabe.
+  </div>
+
+  <div id="jobsContainer">
+    <div class="empty-state">
+      <div class="empty-state-icon">⏳</div>
+      <h3>Wird geladen…</h3>
+    </div>
+  </div>
+
+</div>
+
+<script>
+async function loadJobs() {
+  try {
+    const res = await fetch('/api/jobs');
+    const jobs = await res.json();
+    renderJobs(jobs);
+  } catch (err) {
+    document.getElementById('jobsContainer').innerHTML =
+      '<div class="alert alert-error">Fehler beim Laden: ' + err.message + '</div>';
+  }
+}
+
+function renderJobs(jobs) {
+  const container = document.getElementById('jobsContainer');
+  document.getElementById('pendingCount').textContent = jobs.length;
+
+  if (jobs.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">✅</div>
+        <h3>Keine ausstehenden Exposés</h3>
+        <p style="color:var(--slate); margin-top:.5rem;">Alle Jobs wurden bearbeitet.</p>
+        <a href="/generate" class="btn btn-primary" style="margin-top:1.5rem;">Neues Exposé generieren</a>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = jobs.map(job => jobCard(job)).join('');
+}
+
+function jobCard(job) {
+  const ts = new Date(job.timestamp).toLocaleString('de-DE', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+
+  const hallBadge = job.hallucination_detected
+    ? `<span class="badge badge-warning">⚠ Auffälligkeiten</span>`
+    : `<span class="badge badge-success">✓ Geprüft</span>`;
+
+  const hallAlert = job.hallucination_detected
+    ? `<div class="alert alert-warning" style="margin-bottom:1.25rem;">
+        <strong>Prüfung hat Auffälligkeiten erkannt:</strong> ${escHtml(job.hallucination_details)}
+       </div>`
+    : '';
+
+  return `
+  <div class="job-card" id="job-${job.job_id}">
+    <div class="job-header" onclick="toggleJob('${job.job_id}')">
+      <div class="job-meta">
+        <span class="job-property">${escHtml(job.property_id)}</span>
+        <span class="badge badge-pending">ausstehend</span>
+        ${hallBadge}
+      </div>
+      <div style="display:flex; align-items:center; gap:1rem;">
+        <span class="job-id">#${escHtml(job.job_id)}</span>
+        <span class="job-time">${ts}</span>
+        <span id="chevron-${job.job_id}" style="color:var(--slate); font-size:.75rem;">▼</span>
+      </div>
+    </div>
+
+    <div class="job-body" id="body-${job.job_id}">
+      ${hallAlert}
+
+      <div class="job-expose">
+        <h4>Generiertes Exposé</h4>
+        <div class="expose-text">${escHtml(job.expose_text)}</div>
+      </div>
+
+      <div class="review-actions">
+        <h4>Entscheidung</h4>
+        <div class="review-form">
+
+          <div class="field" style="max-width:320px;">
+            <label>Ihr Name (für Prüfpfad)</label>
+            <input type="text" id="reviewer-${job.job_id}" placeholder="z. B. Maria Müller">
+          </div>
+
+          <div class="reject-note" id="rejectNote-${job.job_id}">
+            <div class="field" style="max-width:480px;">
+              <label>Ablehnungsgrund</label>
+              <textarea id="note-${job.job_id}" placeholder="z. B. Preis stimmt nicht, Ausstattung unvollständig…" style="min-height:60px;"></textarea>
+            </div>
+          </div>
+
+          <div class="review-buttons">
+            <button class="btn btn-success" onclick="submitReview('${job.job_id}', 'approve')">
+              ✓ Freigeben
+            </button>
+            <button class="btn btn-danger" id="rejectBtn-${job.job_id}"
+              onclick="toggleRejectNote('${job.job_id}')">
+              ✗ Ablehnen
+            </button>
+            <button class="btn btn-outline btn-sm"
+              id="confirmReject-${job.job_id}"
+              style="display:none;"
+              onclick="submitReview('${job.job_id}', 'reject')">
+              Ablehnung bestätigen
+            </button>
+          </div>
+
+          <div id="reviewError-${job.job_id}" class="alert alert-error" style="display:none;"></div>
+
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function toggleJob(jobId) {
+  const body = document.getElementById('body-' + jobId);
+  const chevron = document.getElementById('chevron-' + jobId);
+  const open = body.classList.toggle('open');
+  chevron.textContent = open ? '▲' : '▼';
+}
+
+function toggleRejectNote(jobId) {
+  const note = document.getElementById('rejectNote-' + jobId);
+  const confirm = document.getElementById('confirmReject-' + jobId);
+  const rejectBtn = document.getElementById('rejectBtn-' + jobId);
+  const open = note.classList.toggle('visible');
+  confirm.style.display = open ? 'inline-flex' : 'none';
+  rejectBtn.textContent = open ? '← Abbrechen' : '✗ Ablehnen';
+}
+
+async function submitReview(jobId, action) {
+  const reviewer = document.getElementById('reviewer-' + jobId).value.trim();
+  const note = document.getElementById('note-' + jobId)?.value.trim() || '';
+  const errEl = document.getElementById('reviewError-' + jobId);
+
+  errEl.style.display = 'none';
+
+  if (action === 'reject' && !note) {
+    errEl.textContent = 'Bitte einen Ablehnungsgrund angeben.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/review/' + jobId, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, reviewer: reviewer || 'Anonym', note }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      errEl.textContent = data.error || 'Fehler';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    const card = document.getElementById('job-' + jobId);
+    const label = action === 'approve' ? 'Freigegeben ✓' : 'Abgelehnt ✗';
+    const color = action === 'approve' ? 'var(--green-bg)' : 'var(--red-bg)';
+    const border = action === 'approve' ? 'var(--green-border)' : 'var(--red-border)';
+
+    card.style.background = color;
+    card.style.borderColor = border;
+    card.querySelector('.job-header').innerHTML =
+      `<span style="font-weight:700;">${label} — ${escHtml(jobId)}</span>`;
+    card.querySelector('.job-body').remove();
+
+    const count = parseInt(document.getElementById('pendingCount').textContent) - 1;
+    document.getElementById('pendingCount').textContent = Math.max(0, count);
+  } catch (err) {
+    errEl.textContent = 'Netzwerkfehler: ' + err.message;
+    errEl.style.display = 'block';
+  }
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+loadJobs();
+</script>
+
+{% endblock %}

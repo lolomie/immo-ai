@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% block title %}Exposé generieren — Immo AI{% endblock %}
+
+{% block content %}
+
+<div class="app-header">
+  <h1>Exposé generieren</h1>
+  <p>Objektdaten eingeben → Exposé in Sekunden erhalten → zur Review weiterleiten</p>
+</div>
+
+<div class="app-body">
+  <div class="generate-layout">
+
+    <!-- ── Form ── -->
+    <div class="form-panel">
+      <div class="card">
+        <form id="generateForm">
+
+          <div class="form-grid">
+
+            <div class="field">
+              <label>Straße &amp; Hausnummer</label>
+              <input type="text" id="address" placeholder="Musterstraße 42" required>
+            </div>
+
+            <div class="field">
+              <label>Stadt</label>
+              <input type="text" id="city" placeholder="München" required>
+            </div>
+
+            <div class="field">
+              <label>PLZ</label>
+              <input type="text" id="zip_code" placeholder="80331" required>
+            </div>
+
+            <div class="field">
+              <label>Objekttyp</label>
+              <select id="property_type" required>
+                <option value="">— bitte wählen —</option>
+                <option value="Wohnung">Wohnung</option>
+                <option value="Haus">Haus</option>
+                <option value="Gewerbe">Gewerbe</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Wohnfläche (m²)</label>
+              <input type="number" id="size_sqm" placeholder="78.5" step="0.5" min="1" required>
+            </div>
+
+            <div class="field">
+              <label>Zimmer</label>
+              <input type="number" id="rooms" placeholder="3" step="0.5" min="0.5" required>
+            </div>
+
+            <div class="field">
+              <label>Kaufpreis (€) <span class="opt">optional</span></label>
+              <input type="number" id="purchase_price" placeholder="485000" min="0">
+            </div>
+
+            <div class="field">
+              <label>Kaltmiete (€/Monat) <span class="opt">optional</span></label>
+              <input type="number" id="monthly_rent" placeholder="1200" min="0">
+            </div>
+
+            <div class="field">
+              <label>Baujahr <span class="opt">optional</span></label>
+              <input type="number" id="year_built" placeholder="1998" min="1800" max="2030">
+            </div>
+
+            <div class="field">
+              <label>Energieeffizienzklasse <span class="opt">optional</span></label>
+              <select id="energy_class">
+                <option value="">— keine Angabe —</option>
+                <option>A+</option><option>A</option><option>B</option>
+                <option>C</option><option>D</option><option>E</option>
+                <option>F</option><option>G</option><option>H</option>
+              </select>
+            </div>
+
+            <div class="field form-full">
+              <label>Ausstattungsmerkmale <span class="opt">kommagetrennt</span></label>
+              <input type="text" id="features" placeholder="Balkon, Einbauküche, Tiefgaragenstellplatz, Aufzug">
+              <span class="field-hint">Nur tatsächlich vorhandene Merkmale eintragen — wird direkt ins Exposé übernommen.</span>
+            </div>
+
+            <div class="field form-full">
+              <label>Interne Notizen <span class="opt">optional · nicht im Exposé</span></label>
+              <textarea id="notes" placeholder="Eigentümer möchte schnell verkaufen, Preis verhandelbar…"></textarea>
+              <span class="field-hint">Diese Notizen werden nie an die KI oder in den generierten Text weitergegeben.</span>
+            </div>
+
+          </div>
+
+          <div style="margin-top:1.5rem;">
+            <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" style="width:100%; justify-content:center;">
+              Exposé generieren
+            </button>
+          </div>
+
+          <div id="formError" class="alert alert-error" style="display:none; margin-top:1rem;"></div>
+
+        </form>
+      </div>
+    </div>
+
+    <!-- ── Result ── -->
+    <div class="result-panel" id="resultPanel">
+      <div class="card" style="position:sticky; top:84px;">
+
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; flex-wrap:wrap; gap:.75rem;">
+          <h2 style="font-size:1.1rem; font-weight:700;">Generiertes Exposé</h2>
+          <div id="validationBadge"></div>
+        </div>
+
+        <div id="validationAlert" style="display:none;" class="alert alert-warning" role="alert"></div>
+
+        <div class="expose-text" id="exposeText"></div>
+
+        <div class="alert alert-warning" style="font-size:.8125rem; margin-bottom:1rem;">
+          ⚠️ KI-generiert — vor Veröffentlichung prüfen. Weiterleitung zur Review erforderlich.
+        </div>
+
+        <div style="display:flex; gap:.75rem; flex-wrap:wrap;">
+          <a href="/review" class="btn btn-primary" id="reviewLink">Zur Review →</a>
+          <button class="btn btn-outline" id="copyBtn" onclick="copyExpose()">Text kopieren</button>
+          <button class="btn btn-outline" onclick="resetForm()">Neues Exposé</button>
+        </div>
+
+        <p style="margin-top:1rem; font-size:.8rem; color:var(--slate);">
+          Job-ID: <code id="jobId"></code> · Status: ausstehend
+        </p>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const form = document.getElementById('generateForm');
+const submitBtn = document.getElementById('submitBtn');
+const resultPanel = document.getElementById('resultPanel');
+const formError = document.getElementById('formError');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  formError.style.display = 'none';
+
+  const data = {
+    address:        val('address'),
+    city:           val('city'),
+    zip_code:       val('zip_code'),
+    property_type:  val('property_type'),
+    size_sqm:       parseFloat(val('size_sqm')) || null,
+    rooms:          parseFloat(val('rooms')) || null,
+    purchase_price: parseFloat(val('purchase_price')) || null,
+    monthly_rent:   parseFloat(val('monthly_rent')) || null,
+    year_built:     parseInt(val('year_built')) || null,
+    energy_class:   val('energy_class') || null,
+    features:       val('features'),
+    notes:          val('notes') || null,
+  };
+
+  try {
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+
+    if (!res.ok) {
+      showError(json.error || 'Unbekannter Fehler');
+      return;
+    }
+
+    showResult(json);
+  } catch (err) {
+    showError('Netzwerkfehler: ' + err.message);
+  } finally {
+    setLoading(false);
+  }
+});
+
+function val(id) {
+  return document.getElementById(id).value.trim();
+}
+
+function setLoading(on) {
+  submitBtn.disabled = on;
+  submitBtn.innerHTML = on
+    ? '<span class="spinner"></span> Generiert…'
+    : 'Exposé generieren';
+}
+
+function showError(msg) {
+  formError.textContent = msg;
+  formError.style.display = 'block';
+}
+
+function showResult(job) {
+  document.getElementById('exposeText').textContent = job.expose_text;
+  document.getElementById('jobId').textContent = job.job_id;
+
+  const badge = document.getElementById('validationBadge');
+  const alert = document.getElementById('validationAlert');
+
+  if (job.hallucination_detected) {
+    badge.innerHTML = '<span class="badge badge-warning">⚠ Prüfung: Auffälligkeiten</span>';
+    alert.style.display = 'block';
+    alert.textContent = 'Prüfung hat Auffälligkeiten erkannt: ' + job.hallucination_details;
+  } else {
+    badge.innerHTML = '<span class="badge badge-success">✓ Prüfung bestanden</span>';
+    alert.style.display = 'none';
+  }
+
+  resultPanel.classList.add('visible');
+  resultPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function copyExpose() {
+  const text = document.getElementById('exposeText').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = '✓ Kopiert';
+    setTimeout(() => btn.textContent = 'Text kopieren', 2000);
+  });
+}
+
+function resetForm() {
+  form.reset();
+  resultPanel.classList.remove('visible');
+  formError.style.display = 'none';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+
+{% endblock %}
