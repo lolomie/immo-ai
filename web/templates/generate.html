@@ -2,222 +2,457 @@
 {% block title %}Exposé generieren — Immo AI{% endblock %}
 
 {% block content %}
+<style>
+  /* ── Generator page overrides ── */
+  .gen-wrapper {
+    display: grid;
+    grid-template-columns: 480px 1fr;
+    min-height: calc(100vh - 64px);
+    align-items: start;
+  }
 
-<div class="app-header">
-  <h1>Exposé generieren</h1>
-  <p>Objektdaten eingeben → Exposé in Sekunden erhalten → zur Review weiterleiten</p>
-</div>
+  /* LEFT */
+  .gen-left {
+    border-right: 1px solid var(--border);
+    padding: 2rem 2rem 3rem;
+    background: var(--bg-subtle);
+    min-height: calc(100vh - 64px);
+  }
+  .gen-intro { margin-bottom: 2rem; }
+  .gen-intro h1 {
+    font-size: 1.375rem;
+    font-weight: 800;
+    color: var(--navy);
+    letter-spacing: -.03em;
+    margin-bottom: .35rem;
+  }
+  .gen-intro p { font-size: .9rem; color: var(--slate); line-height: 1.6; }
 
-<div class="app-body">
-  <div class="generate-layout">
+  .section-divider {
+    font-size: .7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--slate-light);
+    margin: 1.5rem 0 .875rem;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+  }
+  .section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
 
-    <!-- ── Form ── -->
-    <div class="form-panel">
-      <div class="card">
-        <form id="generateForm">
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: .875rem; }
+  .form-row.single { grid-template-columns: 1fr; }
+  .form-row + .form-row { margin-top: .875rem; }
 
-          <div class="form-grid">
+  .field label {
+    font-size: .8rem;
+    font-weight: 600;
+    color: var(--navy-700);
+    margin-bottom: .3rem;
+    display: block;
+  }
+  .field label .opt {
+    font-weight: 400;
+    color: var(--slate-light);
+    font-size: .75rem;
+  }
+  .field input, .field select, .field textarea {
+    width: 100%;
+    padding: .55rem .8rem;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    font-size: .9rem;
+    color: var(--navy-800);
+    background: var(--bg);
+    transition: border-color .15s, box-shadow .15s;
+    font-family: inherit;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    outline: none;
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+  }
+  .field textarea { resize: vertical; min-height: 70px; }
+  .field-hint { font-size: .75rem; color: var(--slate-light); margin-top: .3rem; display: block; }
 
-            <div class="field">
-              <label>Straße &amp; Hausnummer</label>
-              <input type="text" id="address" placeholder="Musterstraße 42" required>
-            </div>
+  .submit-area { margin-top: 1.75rem; }
+  #submitBtn {
+    width: 100%;
+    justify-content: center;
+    padding: .8rem;
+    font-size: 1rem;
+    border-radius: 8px;
+    gap: .6rem;
+  }
+  #formError {
+    display: none;
+    margin-top: .875rem;
+    padding: .75rem 1rem;
+    background: var(--red-bg);
+    border: 1px solid var(--red-border);
+    border-radius: 6px;
+    font-size: .875rem;
+    color: #991b1b;
+  }
 
-            <div class="field">
-              <label>Stadt</label>
-              <input type="text" id="city" placeholder="München" required>
-            </div>
+  /* RIGHT */
+  .gen-right {
+    padding: 2rem;
+    position: sticky;
+    top: 64px;
+    max-height: calc(100vh - 64px);
+    overflow-y: auto;
+  }
 
-            <div class="field">
-              <label>PLZ</label>
-              <input type="text" id="zip_code" placeholder="80331" required>
-            </div>
+  /* Empty state */
+  .output-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 420px;
+    text-align: center;
+    color: var(--slate);
+  }
+  .output-empty-icon {
+    width: 72px; height: 72px;
+    background: var(--bg-subtle);
+    border: 2px dashed var(--border);
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.75rem;
+    margin-bottom: 1.25rem;
+  }
+  .output-empty h3 { font-size: 1rem; font-weight: 700; color: var(--navy-800); margin-bottom: .4rem; }
+  .output-empty p { font-size: .875rem; max-width: 280px; line-height: 1.6; }
 
-            <div class="field">
-              <label>Objekttyp</label>
-              <select id="property_type" required>
-                <option value="">— bitte wählen —</option>
-                <option value="Wohnung">Wohnung</option>
-                <option value="Haus">Haus</option>
-                <option value="Gewerbe">Gewerbe</option>
-              </select>
-            </div>
+  /* Loading state */
+  .output-loading {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 420px;
+    text-align: center;
+  }
+  .loading-ring {
+    width: 48px; height: 48px;
+    border: 3px solid var(--border);
+    border-top-color: var(--blue);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+    margin-bottom: 1.25rem;
+  }
+  .output-loading h3 { font-size: 1rem; font-weight: 700; color: var(--navy); margin-bottom: .35rem; }
+  .output-loading p { font-size: .875rem; color: var(--slate); }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
-            <div class="field">
-              <label>Wohnfläche (m²)</label>
-              <input type="number" id="size_sqm" placeholder="78.5" step="0.5" min="1" required>
-            </div>
+  /* Result */
+  .output-result { display: none; }
 
-            <div class="field">
-              <label>Zimmer</label>
-              <input type="number" id="rooms" placeholder="3" step="0.5" min="0.5" required>
-            </div>
+  .result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: .75rem;
+  }
+  .result-header h2 { font-size: 1rem; font-weight: 800; color: var(--navy); }
 
-            <div class="field">
-              <label>Kaufpreis (€) <span class="opt">optional</span></label>
-              <input type="number" id="purchase_price" placeholder="485000" min="0">
-            </div>
+  .expose-box {
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    font-size: .9375rem;
+    line-height: 1.75;
+    color: var(--navy-800);
+    white-space: pre-wrap;
+    margin-bottom: 1rem;
+    max-height: 380px;
+    overflow-y: auto;
+  }
 
-            <div class="field">
-              <label>Kaltmiete (€/Monat) <span class="opt">optional</span></label>
-              <input type="number" id="monthly_rent" placeholder="1200" min="0">
-            </div>
+  .ai-disclaimer {
+    display: flex;
+    align-items: flex-start;
+    gap: .6rem;
+    background: var(--amber-bg);
+    border: 1px solid var(--amber-border);
+    border-radius: 6px;
+    padding: .75rem 1rem;
+    font-size: .8125rem;
+    color: #92400e;
+    margin-bottom: 1rem;
+    line-height: 1.5;
+  }
+  .ai-disclaimer-icon { flex-shrink: 0; font-size: 1rem; margin-top: .05rem; }
 
-            <div class="field">
-              <label>Baujahr <span class="opt">optional</span></label>
-              <input type="number" id="year_built" placeholder="1998" min="1800" max="2030">
-            </div>
+  .result-actions { display: flex; gap: .625rem; flex-wrap: wrap; margin-bottom: 1rem; }
 
-            <div class="field">
-              <label>Energieeffizienzklasse <span class="opt">optional</span></label>
-              <select id="energy_class">
-                <option value="">— keine Angabe —</option>
-                <option>A+</option><option>A</option><option>B</option>
-                <option>C</option><option>D</option><option>E</option>
-                <option>F</option><option>G</option><option>H</option>
-              </select>
-            </div>
+  .job-meta {
+    font-size: .775rem;
+    color: var(--slate-light);
+    padding-top: .75rem;
+    border-top: 1px solid var(--border);
+  }
+  .job-meta code { font-family: monospace; color: var(--slate); }
 
-            <div class="field form-full">
-              <label>Ausstattungsmerkmale <span class="opt">kommagetrennt</span></label>
-              <input type="text" id="features" placeholder="Balkon, Einbauküche, Tiefgaragenstellplatz, Aufzug">
-              <span class="field-hint">Nur tatsächlich vorhandene Merkmale eintragen — wird direkt ins Exposé übernommen.</span>
-            </div>
+  /* Responsive */
+  @media (max-width: 900px) {
+    .gen-wrapper { grid-template-columns: 1fr; }
+    .gen-left { border-right: none; border-bottom: 1px solid var(--border); min-height: auto; }
+    .gen-right { position: static; max-height: none; }
+    .output-empty, .output-loading { min-height: 200px; }
+  }
+</style>
 
-            <div class="field form-full">
-              <label>Interne Notizen <span class="opt">optional · nicht im Exposé</span></label>
-              <textarea id="notes" placeholder="Eigentümer möchte schnell verkaufen, Preis verhandelbar…"></textarea>
-              <span class="field-hint">Diese Notizen werden nie an die KI oder in den generierten Text weitergegeben.</span>
-            </div>
+<div class="gen-wrapper">
 
-          </div>
+  <!-- ════════════ LEFT — FORM ════════════ -->
+  <div class="gen-left">
 
-          <div style="margin-top:1.5rem;">
-            <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" style="width:100%; justify-content:center;">
-              Exposé generieren
-            </button>
-          </div>
-
-          <div id="formError" class="alert alert-error" style="display:none; margin-top:1rem;"></div>
-
-        </form>
-      </div>
+    <div class="gen-intro">
+      <h1>Exposé in unter 60 Sekunden</h1>
+      <p>Spare Stunden an Schreibarbeit und reagiere schneller auf Anfragen.</p>
     </div>
 
-    <!-- ── Result ── -->
-    <div class="result-panel" id="resultPanel">
-      <div class="card" style="position:sticky; top:84px;">
+    <form id="generateForm" novalidate>
 
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; flex-wrap:wrap; gap:.75rem;">
-          <h2 style="font-size:1.1rem; font-weight:700;">Generiertes Exposé</h2>
-          <div id="validationBadge"></div>
+      <div class="section-divider">Lage</div>
+      <div class="form-row">
+        <div class="field" style="grid-column:1/-1;">
+          <label>Straße &amp; Hausnummer</label>
+          <input type="text" id="address" placeholder="Musterstraße 42" required>
         </div>
-
-        <div id="validationAlert" style="display:none;" class="alert alert-warning" role="alert"></div>
-
-        <div class="expose-text" id="exposeText"></div>
-
-        <div class="alert alert-warning" style="font-size:.8125rem; margin-bottom:1rem;">
-          ⚠️ KI-generiert — vor Veröffentlichung prüfen. Weiterleitung zur Review erforderlich.
-        </div>
-
-        <div style="display:flex; gap:.75rem; flex-wrap:wrap;">
-          <a href="/review" class="btn btn-primary" id="reviewLink">Zur Review →</a>
-          <button class="btn btn-outline" id="copyBtn" onclick="copyExpose()">Text kopieren</button>
-          <button class="btn btn-outline" onclick="resetForm()">Neues Exposé</button>
-        </div>
-
-        <p style="margin-top:1rem; font-size:.8rem; color:var(--slate);">
-          Job-ID: <code id="jobId"></code> · Status: ausstehend
-        </p>
-
       </div>
+      <div class="form-row" style="margin-top:.875rem;">
+        <div class="field">
+          <label>Stadt</label>
+          <input type="text" id="city" placeholder="München" required>
+        </div>
+        <div class="field">
+          <label>PLZ</label>
+          <input type="text" id="zip_code" placeholder="80331" required>
+        </div>
+      </div>
+
+      <div class="section-divider">Objekt</div>
+      <div class="form-row">
+        <div class="field">
+          <label>Typ</label>
+          <select id="property_type" required>
+            <option value="">— wählen —</option>
+            <option value="Wohnung">Wohnung</option>
+            <option value="Haus">Haus</option>
+            <option value="Gewerbe">Gewerbe</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Baujahr <span class="opt">optional</span></label>
+          <input type="number" id="year_built" placeholder="1998" min="1800" max="2030">
+        </div>
+      </div>
+      <div class="form-row" style="margin-top:.875rem;">
+        <div class="field">
+          <label>Wohnfläche (m²)</label>
+          <input type="number" id="size_sqm" placeholder="78.5" step="0.5" min="1" required>
+        </div>
+        <div class="field">
+          <label>Zimmer</label>
+          <input type="number" id="rooms" placeholder="3" step="0.5" min="0.5" required>
+        </div>
+      </div>
+      <div class="form-row" style="margin-top:.875rem;">
+        <div class="field">
+          <label>Energieklasse <span class="opt">optional</span></label>
+          <select id="energy_class">
+            <option value="">— keine —</option>
+            <option>A+</option><option>A</option><option>B</option>
+            <option>C</option><option>D</option><option>E</option>
+            <option>F</option><option>G</option><option>H</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section-divider">Preis</div>
+      <div class="form-row">
+        <div class="field">
+          <label>Kaufpreis (€) <span class="opt">optional</span></label>
+          <input type="number" id="purchase_price" placeholder="485 000" min="0">
+        </div>
+        <div class="field">
+          <label>Kaltmiete (€/Mo.) <span class="opt">optional</span></label>
+          <input type="number" id="monthly_rent" placeholder="1 200" min="0">
+        </div>
+      </div>
+
+      <div class="section-divider">Ausstattung &amp; Notizen</div>
+      <div class="form-row single">
+        <div class="field">
+          <label>Ausstattungsmerkmale <span class="opt">kommagetrennt</span></label>
+          <input type="text" id="features" placeholder="Balkon, Einbauküche, Aufzug, Tiefgarage">
+          <span class="field-hint">Nur tatsächlich vorhandene Merkmale — fließen direkt ins Exposé ein.</span>
+        </div>
+      </div>
+      <div class="form-row single" style="margin-top:.875rem;">
+        <div class="field">
+          <label>Interne Notizen <span class="opt">nicht im Exposé</span></label>
+          <textarea id="notes" placeholder="Eigentümer möchte schnell verkaufen, Preis verhandelbar…"></textarea>
+          <span class="field-hint">Wird nie an die KI weitergegeben.</span>
+        </div>
+      </div>
+
+      <div class="submit-area">
+        <button type="submit" class="btn btn-primary" id="submitBtn">
+          ✦ Exposé generieren
+        </button>
+        <div id="formError"></div>
+      </div>
+
+    </form>
+  </div>
+
+  <!-- ════════════ RIGHT — OUTPUT ════════════ -->
+  <div class="gen-right">
+
+    <!-- Empty state -->
+    <div class="output-empty" id="stateEmpty">
+      <div class="output-empty-icon">📄</div>
+      <h3>Noch kein Exposé</h3>
+      <p>Fülle das Formular links aus und klicke auf „Exposé generieren" — das Ergebnis erscheint hier.</p>
+    </div>
+
+    <!-- Loading state -->
+    <div class="output-loading" id="stateLoading">
+      <div class="loading-ring"></div>
+      <h3>Exposé wird erstellt…</h3>
+      <p>KI analysiert die Daten und formuliert den Text.</p>
+    </div>
+
+    <!-- Result -->
+    <div class="output-result" id="stateResult">
+
+      <div class="result-header">
+        <h2>Generiertes Exposé</h2>
+        <div id="validationBadge"></div>
+      </div>
+
+      <div id="validationAlert" style="display:none; margin-bottom:1rem;"></div>
+
+      <div class="expose-box" id="exposeText"></div>
+
+      <div class="ai-disclaimer">
+        <span class="ai-disclaimer-icon">⚠️</span>
+        <span>Dieses Exposé wurde KI-gestützt erstellt. Bitte vor Veröffentlichung prüfen.</span>
+      </div>
+
+      <div class="result-actions">
+        <a href="/review" class="btn btn-primary btn-sm">Zur Review →</a>
+        <button class="btn btn-outline btn-sm" id="copyBtn" onclick="copyExpose()">Kopieren</button>
+        <button class="btn btn-outline btn-sm" onclick="resetForm()">Neu starten</button>
+      </div>
+
+      <div class="job-meta">
+        Job <code id="jobId"></code> · Status: ausstehend
+      </div>
+
     </div>
 
   </div>
 </div>
 
 <script>
-const form = document.getElementById('generateForm');
-const submitBtn = document.getElementById('submitBtn');
-const resultPanel = document.getElementById('resultPanel');
-const formError = document.getElementById('formError');
+const form       = document.getElementById('generateForm');
+const submitBtn  = document.getElementById('submitBtn');
+const formError  = document.getElementById('formError');
+
+function setState(s) {
+  document.getElementById('stateEmpty').style.display   = s === 'empty'   ? 'flex'  : 'none';
+  document.getElementById('stateLoading').style.display = s === 'loading' ? 'flex'  : 'none';
+  document.getElementById('stateResult').style.display  = s === 'result'  ? 'block' : 'none';
+}
+
+setState('empty');
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
-  setLoading(true);
   formError.style.display = 'none';
+  formError.textContent = '';
+
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<span class="spinner"></span> Wird generiert…';
+  setState('loading');
 
   const data = {
-    address:        val('address'),
-    city:           val('city'),
-    zip_code:       val('zip_code'),
-    property_type:  val('property_type'),
-    size_sqm:       parseFloat(val('size_sqm')) || null,
-    rooms:          parseFloat(val('rooms')) || null,
-    purchase_price: parseFloat(val('purchase_price')) || null,
-    monthly_rent:   parseFloat(val('monthly_rent')) || null,
-    year_built:     parseInt(val('year_built')) || null,
-    energy_class:   val('energy_class') || null,
-    features:       val('features'),
-    notes:          val('notes') || null,
+    address:        v('address'),
+    city:           v('city'),
+    zip_code:       v('zip_code'),
+    property_type:  v('property_type'),
+    size_sqm:       num('size_sqm'),
+    rooms:          num('rooms'),
+    purchase_price: num('purchase_price'),
+    monthly_rent:   num('monthly_rent'),
+    year_built:     int('year_built'),
+    energy_class:   v('energy_class') || null,
+    features:       v('features'),
+    notes:          v('notes') || null,
   };
 
   try {
-    const res = await fetch('/api/generate', {
+    const res  = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
     const json = await res.json();
 
-    if (!res.ok) {
-      showError(json.error || 'Unbekannter Fehler');
-      return;
-    }
+    if (!res.ok) { showErr(json.error || 'Unbekannter Fehler'); return; }
 
-    showResult(json);
+    renderResult(json);
   } catch (err) {
-    showError('Netzwerkfehler: ' + err.message);
+    showErr('Netzwerkfehler: ' + err.message);
   } finally {
-    setLoading(false);
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '✦ Exposé generieren';
   }
 });
 
-function val(id) {
-  return document.getElementById(id).value.trim();
-}
-
-function setLoading(on) {
-  submitBtn.disabled = on;
-  submitBtn.innerHTML = on
-    ? '<span class="spinner"></span> Generiert…'
-    : 'Exposé generieren';
-}
-
-function showError(msg) {
-  formError.textContent = msg;
-  formError.style.display = 'block';
-}
-
-function showResult(job) {
+function renderResult(job) {
   document.getElementById('exposeText').textContent = job.expose_text;
-  document.getElementById('jobId').textContent = job.job_id;
+  document.getElementById('jobId').textContent      = job.job_id;
+
+  const flagged = job.hallucination_detected ?? job.hallucinated ?? false;
+  const details = job.hallucination_details  ?? job.details      ?? '';
 
   const badge = document.getElementById('validationBadge');
   const alert = document.getElementById('validationAlert');
 
-  if (job.hallucination_detected) {
-    badge.innerHTML = '<span class="badge badge-warning">⚠ Prüfung: Auffälligkeiten</span>';
+  if (flagged) {
+    badge.innerHTML = '<span class="badge badge-warning">⚠ Mögliche Ungenauigkeiten</span>';
     alert.style.display = 'block';
-    alert.textContent = 'Prüfung hat Auffälligkeiten erkannt: ' + job.hallucination_details;
+    alert.className = 'alert alert-warning';
+    alert.textContent = details || 'Prüfung hat Auffälligkeiten erkannt.';
   } else {
-    badge.innerHTML = '<span class="badge badge-success">✓ Prüfung bestanden</span>';
+    badge.innerHTML = '<span class="badge badge-success">✓ Keine Auffälligkeiten erkannt</span>';
     alert.style.display = 'none';
   }
 
-  resultPanel.classList.add('visible');
-  resultPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  setState('result');
+  document.querySelector('.gen-right').scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showErr(msg) {
+  setState('empty');
+  formError.textContent   = '⚠ ' + msg;
+  formError.style.display = 'block';
 }
 
 function copyExpose() {
@@ -225,16 +460,20 @@ function copyExpose() {
   navigator.clipboard.writeText(text).then(() => {
     const btn = document.getElementById('copyBtn');
     btn.textContent = '✓ Kopiert';
-    setTimeout(() => btn.textContent = 'Text kopieren', 2000);
+    setTimeout(() => btn.textContent = 'Kopieren', 2000);
   });
 }
 
 function resetForm() {
   form.reset();
-  resultPanel.classList.remove('visible');
+  setState('empty');
   formError.style.display = 'none';
-  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+/* helpers */
+const v   = id => document.getElementById(id).value.trim();
+const num = id => parseFloat(v(id)) || null;
+const int = id => parseInt(v(id))   || null;
 </script>
 
 {% endblock %}
