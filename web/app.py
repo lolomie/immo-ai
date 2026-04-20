@@ -10,12 +10,17 @@ from flask import Flask, Response, jsonify, redirect, render_template, request, 
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+_here = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(_here, ".."))  # project root → src.*
+sys.path.insert(0, _here)                       # web/ → auth
 
 from src.generator import generate_expose, stream_expose
 from src.models import JobResult, PropertyInput
 from src.validator import validate_expose
-from .auth import api_login_required, check_credentials, login_required
+try:
+    from .auth import api_login_required, check_credentials, login_required
+except ImportError:
+    from auth import api_login_required, check_credentials, login_required
 
 logging.basicConfig(
     level=logging.INFO,
