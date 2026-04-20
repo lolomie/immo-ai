@@ -22,6 +22,10 @@ python workflows/run.py --input docs/example_property.json
 
 # Review pending jobs (approve / reject)
 python workflows/review.py
+
+# Start web interface
+python web/app.py
+# → http://localhost:5000
 ```
 
 ## Output
