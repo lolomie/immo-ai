@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Serverfehler — Immo AI{% endblock %}
+{% block content %}
+<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:calc(100vh - 128px); padding:2rem; text-align:center;">
+  <div style="font-size:4rem; margin-bottom:1rem;">⚠️</div>
+  <h1 style="font-size:1.75rem; font-weight:800; color:var(--navy); letter-spacing:-.03em; margin-bottom:.75rem;">Serverfehler</h1>
+  <p style="color:var(--slate); font-size:1rem; max-width:400px; line-height:1.6; margin-bottom:2rem;">
+    Etwas ist schiefgelaufen. Bitte versuche es in einem Moment erneut.
+  </p>
+  <div style="display:flex; gap:1rem; flex-wrap:wrap; justify-content:center;">
+    <a href="/" class="btn btn-primary">Zur Startseite</a>
+    <button onclick="history.back()" class="btn btn-outline">Zurück</button>
+  </div>
+</div>
+{% endblock %}

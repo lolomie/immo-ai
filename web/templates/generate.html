@@ -3,15 +3,12 @@
 
 {% block content %}
 <style>
-  /* ── Generator page overrides ── */
   .gen-wrapper {
     display: grid;
     grid-template-columns: 480px 1fr;
     min-height: calc(100vh - 64px);
     align-items: start;
   }
-
-  /* LEFT */
   .gen-left {
     border-right: 1px solid var(--border);
     padding: 2rem 2rem 3rem;
@@ -19,241 +16,190 @@
     min-height: calc(100vh - 64px);
   }
   .gen-intro { margin-bottom: 2rem; }
-  .gen-intro h1 {
-    font-size: 1.375rem;
-    font-weight: 800;
-    color: var(--navy);
-    letter-spacing: -.03em;
-    margin-bottom: .35rem;
-  }
+  .gen-intro h1 { font-size: 1.375rem; font-weight: 800; color: var(--navy); letter-spacing: -.03em; margin-bottom: .35rem; }
   .gen-intro p { font-size: .9rem; color: var(--slate); line-height: 1.6; }
 
-  .section-divider {
-    font-size: .7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .1em;
-    color: var(--slate-light);
-    margin: 1.5rem 0 .875rem;
-    display: flex;
+  .draft-bar {
+    display: none;
     align-items: center;
-    gap: .5rem;
+    justify-content: space-between;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 6px;
+    padding: .5rem .875rem;
+    font-size: .8125rem;
+    color: #1e40af;
+    margin-bottom: 1rem;
   }
-  .section-divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
+  .draft-bar.visible { display: flex; }
+  .draft-bar button { background: none; border: none; color: #1e40af; cursor: pointer; font-size: .8125rem; text-decoration: underline; padding: 0; }
+
+  .section-divider {
+    font-size: .7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .1em; color: var(--slate-light);
+    margin: 1.5rem 0 .875rem;
+    display: flex; align-items: center; gap: .5rem;
   }
+  .section-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: .875rem; }
   .form-row.single { grid-template-columns: 1fr; }
   .form-row + .form-row { margin-top: .875rem; }
 
-  .field label {
-    font-size: .8rem;
-    font-weight: 600;
-    color: var(--navy-700);
-    margin-bottom: .3rem;
-    display: block;
-  }
-  .field label .opt {
-    font-weight: 400;
-    color: var(--slate-light);
-    font-size: .75rem;
-  }
+  .field label { font-size: .8rem; font-weight: 600; color: var(--navy-700); margin-bottom: .3rem; display: block; }
+  .field label .opt { font-weight: 400; color: var(--slate-light); font-size: .75rem; }
   .field input, .field select, .field textarea {
-    width: 100%;
-    padding: .55rem .8rem;
-    border: 1.5px solid var(--border);
-    border-radius: 6px;
-    font-size: .9rem;
-    color: var(--navy-800);
-    background: var(--bg);
+    width: 100%; padding: .55rem .8rem;
+    border: 1.5px solid var(--border); border-radius: 6px;
+    font-size: .9rem; color: var(--navy-800); background: var(--bg);
     transition: border-color .15s, box-shadow .15s;
     font-family: inherit;
   }
   .field input:focus, .field select:focus, .field textarea:focus {
-    outline: none;
-    border-color: var(--blue);
-    box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+    outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,99,235,.1);
   }
+  .field input.invalid, .field select.invalid { border-color: var(--red); }
+  .field .field-err { font-size: .75rem; color: var(--red); margin-top: .25rem; display: none; }
+  .field.has-error .field-err { display: block; }
   .field textarea { resize: vertical; min-height: 70px; }
   .field-hint { font-size: .75rem; color: var(--slate-light); margin-top: .3rem; display: block; }
 
   .submit-area { margin-top: 1.75rem; }
-  #submitBtn {
-    width: 100%;
-    justify-content: center;
-    padding: .8rem;
-    font-size: 1rem;
-    border-radius: 8px;
-    gap: .6rem;
+  .submit-row { display: flex; gap: .625rem; align-items: center; }
+  #submitBtn { flex: 1; justify-content: center; padding: .8rem; font-size: 1rem; border-radius: 8px; }
+  .csv-label {
+    display: inline-flex; align-items: center; gap: .4rem;
+    padding: .55rem .875rem; border-radius: 8px; font-size: .8125rem; font-weight: 600;
+    cursor: pointer; border: 1.5px solid var(--border); color: var(--navy-700);
+    background: var(--bg); transition: border-color .15s, background .15s;
+    white-space: nowrap;
   }
+  .csv-label:hover { border-color: var(--navy-700); background: var(--bg-subtle); }
+  #csvInput { display: none; }
   #formError {
-    display: none;
-    margin-top: .875rem;
-    padding: .75rem 1rem;
-    background: var(--red-bg);
-    border: 1px solid var(--red-border);
-    border-radius: 6px;
-    font-size: .875rem;
-    color: #991b1b;
+    display: none; margin-top: .875rem; padding: .75rem 1rem;
+    background: var(--red-bg); border: 1px solid var(--red-border);
+    border-radius: 6px; font-size: .875rem; color: #991b1b;
   }
 
   /* RIGHT */
-  .gen-right {
-    padding: 2rem;
-    position: sticky;
-    top: 64px;
-    max-height: calc(100vh - 64px);
-    overflow-y: auto;
-  }
+  .gen-right { padding: 2rem; position: sticky; top: 64px; max-height: calc(100vh - 64px); overflow-y: auto; }
 
-  /* Empty state */
   .output-empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 420px;
-    text-align: center;
-    color: var(--slate);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 420px; text-align: center; color: var(--slate);
   }
   .output-empty-icon {
-    width: 72px; height: 72px;
-    background: var(--bg-subtle);
-    border: 2px dashed var(--border);
-    border-radius: 16px;
+    width: 72px; height: 72px; background: var(--bg-subtle);
+    border: 2px dashed var(--border); border-radius: 16px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 1.75rem;
-    margin-bottom: 1.25rem;
+    font-size: 1.75rem; margin-bottom: 1.25rem;
   }
   .output-empty h3 { font-size: 1rem; font-weight: 700; color: var(--navy-800); margin-bottom: .4rem; }
   .output-empty p { font-size: .875rem; max-width: 280px; line-height: 1.6; }
 
-  /* Loading state */
-  .output-loading {
-    display: none;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 420px;
-    text-align: center;
-  }
-  .loading-ring {
-    width: 48px; height: 48px;
-    border: 3px solid var(--border);
-    border-top-color: var(--blue);
-    border-radius: 50%;
-    animation: spin .8s linear infinite;
-    margin-bottom: 1.25rem;
-  }
-  .output-loading h3 { font-size: 1rem; font-weight: 700; color: var(--navy); margin-bottom: .35rem; }
-  .output-loading p { font-size: .875rem; color: var(--slate); }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  .output-streaming { display: none; }
+  .output-streaming .stream-header { display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem; }
+  .stream-indicator { width: 8px; height: 8px; background: var(--blue); border-radius: 50%; animation: pulse .8s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.3; } }
+  .stream-label { font-size: .875rem; font-weight: 600; color: var(--blue); }
 
-  /* Result */
+  .output-validating { display: none; }
+  .output-validating .val-header { display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem; }
+  .val-spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin .7s linear infinite; }
+  .val-label { font-size: .875rem; font-weight: 600; color: var(--slate); }
+
   .output-result { display: none; }
-
-  .result-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1rem;
-    flex-wrap: wrap;
-    gap: .75rem;
-  }
+  .result-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: .75rem; }
   .result-header h2 { font-size: 1rem; font-weight: 800; color: var(--navy); }
 
   .expose-box {
-    background: var(--bg);
-    border: 1.5px solid var(--border);
-    border-radius: 8px;
-    padding: 1.25rem 1.5rem;
-    font-size: .9375rem;
-    line-height: 1.75;
-    color: var(--navy-800);
-    white-space: pre-wrap;
-    margin-bottom: 1rem;
-    max-height: 380px;
-    overflow-y: auto;
+    background: var(--bg); border: 1.5px solid var(--border); border-radius: 8px;
+    padding: 1.25rem 1.5rem; font-size: .9375rem; line-height: 1.75;
+    color: var(--navy-800); white-space: pre-wrap; margin-bottom: 1rem;
+    max-height: 380px; overflow-y: auto; min-height: 80px;
   }
+  .expose-box[contenteditable="true"] {
+    border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+    background: #fafcff; outline: none;
+  }
+  .expose-box.streaming { max-height: none; min-height: 200px; }
 
   .ai-disclaimer {
-    display: flex;
-    align-items: flex-start;
-    gap: .6rem;
-    background: var(--amber-bg);
-    border: 1px solid var(--amber-border);
-    border-radius: 6px;
-    padding: .75rem 1rem;
-    font-size: .8125rem;
-    color: #92400e;
-    margin-bottom: 1rem;
-    line-height: 1.5;
+    display: flex; align-items: flex-start; gap: .6rem;
+    background: var(--amber-bg); border: 1px solid var(--amber-border);
+    border-radius: 6px; padding: .75rem 1rem; font-size: .8125rem;
+    color: #92400e; margin-bottom: 1rem; line-height: 1.5;
   }
   .ai-disclaimer-icon { flex-shrink: 0; font-size: 1rem; margin-top: .05rem; }
-
   .result-actions { display: flex; gap: .625rem; flex-wrap: wrap; margin-bottom: 1rem; }
-
-  .job-meta {
-    font-size: .775rem;
-    color: var(--slate-light);
-    padding-top: .75rem;
-    border-top: 1px solid var(--border);
-  }
+  .job-meta { font-size: .775rem; color: var(--slate-light); padding-top: .75rem; border-top: 1px solid var(--border); }
   .job-meta code { font-family: monospace; color: var(--slate); }
 
-  /* Responsive */
   @media (max-width: 900px) {
     .gen-wrapper { grid-template-columns: 1fr; }
     .gen-left { border-right: none; border-bottom: 1px solid var(--border); min-height: auto; }
     .gen-right { position: static; max-height: none; }
-    .output-empty, .output-loading { min-height: 200px; }
+    .output-empty { min-height: 200px; }
+  }
+
+  @media print {
+    nav, footer, .gen-left, .gen-intro, .ai-disclaimer, .result-actions, .job-meta { display: none !important; }
+    .gen-wrapper { display: block; }
+    .gen-right { position: static; max-height: none; padding: 0; }
+    .expose-box { border: none; padding: 0; max-height: none; font-size: 11pt; line-height: 1.8; }
+    .result-header { margin-bottom: .5rem; }
   }
 </style>
 
 <div class="gen-wrapper">
 
-  <!-- ════════════ LEFT — FORM ════════════ -->
+  <!-- LEFT — FORM -->
   <div class="gen-left">
-
     <div class="gen-intro">
       <h1>Exposé in unter 60 Sekunden</h1>
       <p>Spare Stunden an Schreibarbeit und reagiere schneller auf Anfragen.</p>
+    </div>
+
+    <div id="draftBar" class="draft-bar">
+      📝 Entwurf wiederhergestellt
+      <button onclick="clearDraft()">Verwerfen</button>
     </div>
 
     <form id="generateForm" novalidate>
 
       <div class="section-divider">Lage</div>
       <div class="form-row">
-        <div class="field" style="grid-column:1/-1;">
+        <div class="field" style="grid-column:1/-1;" id="f_address">
           <label>Straße &amp; Hausnummer</label>
-          <input type="text" id="address" placeholder="Musterstraße 42" required>
+          <input type="text" id="address" placeholder="Musterstraße 42">
+          <span class="field-err">Pflichtfeld</span>
         </div>
       </div>
       <div class="form-row" style="margin-top:.875rem;">
-        <div class="field">
+        <div class="field" id="f_city">
           <label>Stadt</label>
-          <input type="text" id="city" placeholder="München" required>
+          <input type="text" id="city" placeholder="München">
+          <span class="field-err">Pflichtfeld</span>
         </div>
-        <div class="field">
+        <div class="field" id="f_zip_code">
           <label>PLZ</label>
-          <input type="text" id="zip_code" placeholder="80331" required>
+          <input type="text" id="zip_code" placeholder="80331">
+          <span class="field-err">Pflichtfeld</span>
         </div>
       </div>
 
       <div class="section-divider">Objekt</div>
       <div class="form-row">
-        <div class="field">
+        <div class="field" id="f_property_type">
           <label>Typ</label>
-          <select id="property_type" required>
+          <select id="property_type">
             <option value="">— wählen —</option>
             <option value="Wohnung">Wohnung</option>
             <option value="Haus">Haus</option>
             <option value="Gewerbe">Gewerbe</option>
           </select>
+          <span class="field-err">Pflichtfeld</span>
         </div>
         <div class="field">
           <label>Baujahr <span class="opt">optional</span></label>
@@ -261,13 +207,15 @@
         </div>
       </div>
       <div class="form-row" style="margin-top:.875rem;">
-        <div class="field">
+        <div class="field" id="f_size_sqm">
           <label>Wohnfläche (m²)</label>
-          <input type="number" id="size_sqm" placeholder="78.5" step="0.5" min="1" required>
+          <input type="number" id="size_sqm" placeholder="78.5" step="0.5" min="1">
+          <span class="field-err">Pflichtfeld</span>
         </div>
-        <div class="field">
+        <div class="field" id="f_rooms">
           <label>Zimmer</label>
-          <input type="number" id="rooms" placeholder="3" step="0.5" min="0.5" required>
+          <input type="number" id="rooms" placeholder="3" step="0.5" min="0.5">
+          <span class="field-err">Pflichtfeld</span>
         </div>
       </div>
       <div class="form-row" style="margin-top:.875rem;">
@@ -311,43 +259,56 @@
       </div>
 
       <div class="submit-area">
-        <button type="submit" class="btn btn-primary" id="submitBtn">
-          ✦ Exposé generieren
-        </button>
+        <div class="submit-row">
+          <button type="submit" class="btn btn-primary" id="submitBtn">✦ Exposé generieren</button>
+          <label class="csv-label" title="CSV importieren: address,city,zip_code,property_type,size_sqm,rooms,...">
+            📂 CSV
+            <input type="file" id="csvInput" accept=".csv,text/csv" onchange="importCSV(this)">
+          </label>
+        </div>
         <div id="formError"></div>
       </div>
 
     </form>
   </div>
 
-  <!-- ════════════ RIGHT — OUTPUT ════════════ -->
+  <!-- RIGHT — OUTPUT -->
   <div class="gen-right">
 
-    <!-- Empty state -->
+    <!-- Empty -->
     <div class="output-empty" id="stateEmpty">
       <div class="output-empty-icon">📄</div>
       <h3>Noch kein Exposé</h3>
       <p>Fülle das Formular links aus und klicke auf „Exposé generieren" — das Ergebnis erscheint hier.</p>
     </div>
 
-    <!-- Loading state -->
-    <div class="output-loading" id="stateLoading">
-      <div class="loading-ring"></div>
-      <h3>Exposé wird erstellt…</h3>
-      <p>KI analysiert die Daten und formuliert den Text.</p>
+    <!-- Streaming -->
+    <div class="output-streaming" id="stateStreaming">
+      <div class="stream-header">
+        <div class="stream-indicator"></div>
+        <span class="stream-label">Exposé wird geschrieben…</span>
+      </div>
+      <div class="expose-box streaming" id="streamText"></div>
+    </div>
+
+    <!-- Validating -->
+    <div class="output-validating" id="stateValidating">
+      <div class="val-header">
+        <div class="val-spinner"></div>
+        <span class="val-label">Wird auf Halluzinationen geprüft…</span>
+      </div>
+      <div class="expose-box" id="validatingText"></div>
     </div>
 
     <!-- Result -->
     <div class="output-result" id="stateResult">
-
       <div class="result-header">
         <h2>Generiertes Exposé</h2>
         <div id="validationBadge"></div>
       </div>
-
       <div id="validationAlert" style="display:none; margin-bottom:1rem;"></div>
 
-      <div class="expose-box" id="exposeText"></div>
+      <div class="expose-box" id="exposeText" spellcheck="false"></div>
 
       <div class="ai-disclaimer">
         <span class="ai-disclaimer-icon">⚠️</span>
@@ -357,39 +318,110 @@
       <div class="result-actions">
         <a href="/review" class="btn btn-primary btn-sm">Zur Review →</a>
         <button class="btn btn-outline btn-sm" id="copyBtn" onclick="copyExpose()">Kopieren</button>
+        <button class="btn btn-outline btn-sm" id="editBtn" onclick="toggleEdit()">Bearbeiten</button>
+        <button class="btn btn-outline btn-sm" onclick="downloadTxt()">↓ .txt</button>
+        <button class="btn btn-outline btn-sm" onclick="window.print()">Drucken</button>
         <button class="btn btn-outline btn-sm" onclick="resetForm()">Neu starten</button>
       </div>
 
       <div class="job-meta">
         Job <code id="jobId"></code> · Status: ausstehend
       </div>
-
     </div>
 
   </div>
 </div>
 
 <script>
-const form       = document.getElementById('generateForm');
-const submitBtn  = document.getElementById('submitBtn');
-const formError  = document.getElementById('formError');
+const form      = document.getElementById('generateForm');
+const submitBtn = document.getElementById('submitBtn');
+const formError = document.getElementById('formError');
 
+let currentJobId = null;
+let editMode = false;
+const REQUIRED = ['address','city','zip_code','property_type','size_sqm','rooms'];
+const DRAFT_KEY = 'immoai_draft';
+
+// ── State ─────────────────────────────────────────────────────────────────────
 function setState(s) {
-  document.getElementById('stateEmpty').style.display   = s === 'empty'   ? 'flex'  : 'none';
-  document.getElementById('stateLoading').style.display = s === 'loading' ? 'flex'  : 'none';
-  document.getElementById('stateResult').style.display  = s === 'result'  ? 'block' : 'none';
+  document.getElementById('stateEmpty').style.display      = s === 'empty'      ? 'flex'  : 'none';
+  document.getElementById('stateStreaming').style.display  = s === 'streaming'  ? 'block' : 'none';
+  document.getElementById('stateValidating').style.display = s === 'validating' ? 'block' : 'none';
+  document.getElementById('stateResult').style.display     = s === 'result'     ? 'block' : 'none';
 }
-
 setState('empty');
 
+// ── Draft ─────────────────────────────────────────────────────────────────────
+const FIELDS = ['address','city','zip_code','property_type','year_built','size_sqm','rooms','energy_class','purchase_price','monthly_rent','features','notes'];
+
+function saveDraft() {
+  const d = {};
+  FIELDS.forEach(id => { d[id] = document.getElementById(id).value; });
+  if (Object.values(d).some(v => v)) localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
+}
+
+function loadDraft() {
+  try {
+    const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+    if (!d) return;
+    FIELDS.forEach(id => { if (d[id]) document.getElementById(id).value = d[id]; });
+    document.getElementById('draftBar').classList.add('visible');
+  } catch(e) {}
+}
+
+function clearDraft() {
+  localStorage.removeItem(DRAFT_KEY);
+  document.getElementById('draftBar').classList.remove('visible');
+  form.reset();
+  setState('empty');
+}
+
+loadDraft();
+setInterval(saveDraft, 2000);
+
+// ── Validation ────────────────────────────────────────────────────────────────
+function validateForm() {
+  let ok = true;
+  REQUIRED.forEach(id => {
+    const el = document.getElementById(id);
+    const wrap = document.getElementById('f_' + id);
+    if (!el || !wrap) return;
+    if (!el.value.trim()) {
+      el.classList.add('invalid');
+      wrap.classList.add('has-error');
+      ok = false;
+    } else {
+      el.classList.remove('invalid');
+      wrap.classList.remove('has-error');
+    }
+  });
+  return ok;
+}
+
+REQUIRED.forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('input', () => {
+    const wrap = document.getElementById('f_' + id);
+    if (el.value.trim()) {
+      el.classList.remove('invalid');
+      if (wrap) wrap.classList.remove('has-error');
+    }
+  });
+});
+
+// ── Submit ────────────────────────────────────────────────────────────────────
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   formError.style.display = 'none';
-  formError.textContent = '';
+
+  if (!validateForm()) {
+    formError.textContent = '⚠ Bitte alle Pflichtfelder ausfüllen.';
+    formError.style.display = 'block';
+    return;
+  }
 
   submitBtn.disabled = true;
   submitBtn.innerHTML = '<span class="spinner"></span> Wird generiert…';
-  setState('loading');
 
   const data = {
     address:        v('address'),
@@ -406,17 +438,54 @@ form.addEventListener('submit', async (e) => {
     notes:          v('notes') || null,
   };
 
+  document.getElementById('streamText').textContent = '';
+  setState('streaming');
+
   try {
-    const res  = await fetch('/api/generate', {
+    const res = await fetch('/api/generate/stream', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: apiHeaders(),
       body: JSON.stringify(data),
     });
-    const json = await res.json();
 
-    if (!res.ok) { showErr(json.error || 'Unbekannter Fehler'); return; }
+    if (!res.ok) {
+      const j = await res.json();
+      showErr(j.error || 'Fehler ' + res.status);
+      return;
+    }
 
-    renderResult(json);
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    let fullText = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const parts = buf.split('\n\n');
+      buf = parts.pop();
+      for (const part of parts) {
+        if (!part.startsWith('data: ')) continue;
+        let evt;
+        try { evt = JSON.parse(part.slice(6)); } catch { continue; }
+
+        if (evt.type === 'chunk') {
+          fullText += evt.text;
+          document.getElementById('streamText').textContent = fullText;
+          document.querySelector('.gen-right').scrollTo({ top: 99999, behavior: 'smooth' });
+        } else if (evt.type === 'validating') {
+          document.getElementById('validatingText').textContent = fullText;
+          setState('validating');
+        } else if (evt.type === 'done') {
+          renderResult(evt.job);
+          localStorage.removeItem(DRAFT_KEY);
+          document.getElementById('draftBar').classList.remove('visible');
+        } else if (evt.type === 'error') {
+          showErr(evt.message || 'Unbekannter Fehler');
+        }
+      }
+    }
   } catch (err) {
     showErr('Netzwerkfehler: ' + err.message);
   } finally {
@@ -426,12 +495,16 @@ form.addEventListener('submit', async (e) => {
 });
 
 function renderResult(job) {
-  document.getElementById('exposeText').textContent = job.expose_text;
-  document.getElementById('jobId').textContent      = job.job_id;
+  const el = document.getElementById('exposeText');
+  el.textContent = job.expose_text;
+  el.contentEditable = 'false';
+  editMode = false;
+  document.getElementById('editBtn').textContent = 'Bearbeiten';
+  currentJobId = job.job_id;
+  document.getElementById('jobId').textContent = job.job_id;
 
-  const flagged = job.hallucination_detected ?? job.hallucinated ?? false;
-  const details = job.hallucination_details  ?? job.details      ?? '';
-
+  const flagged = job.hallucination_detected ?? false;
+  const details = job.hallucination_details ?? '';
   const badge = document.getElementById('validationBadge');
   const alert = document.getElementById('validationAlert');
 
@@ -451,10 +524,29 @@ function renderResult(job) {
 
 function showErr(msg) {
   setState('empty');
-  formError.textContent   = '⚠ ' + msg;
+  formError.textContent = '⚠ ' + msg;
   formError.style.display = 'block';
 }
 
+// ── Edit ──────────────────────────────────────────────────────────────────────
+function toggleEdit() {
+  const el = document.getElementById('exposeText');
+  const btn = document.getElementById('editBtn');
+  editMode = !editMode;
+  el.contentEditable = editMode ? 'true' : 'false';
+  btn.textContent = editMode ? '✓ Speichern' : 'Bearbeiten';
+  if (editMode) {
+    el.focus();
+  } else if (currentJobId) {
+    fetch('/api/jobs/' + currentJobId, {
+      method: 'PATCH',
+      headers: apiHeaders(),
+      body: JSON.stringify({ expose_text: el.textContent }),
+    });
+  }
+}
+
+// ── Copy ──────────────────────────────────────────────────────────────────────
 function copyExpose() {
   const text = document.getElementById('exposeText').textContent;
   navigator.clipboard.writeText(text).then(() => {
@@ -464,16 +556,61 @@ function copyExpose() {
   });
 }
 
+// ── Download .txt ─────────────────────────────────────────────────────────────
+function downloadTxt() {
+  const text = document.getElementById('exposeText').textContent;
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'expose-' + (currentJobId || 'immoai') + '.txt';
+  a.click();
+}
+
+// ── Reset ─────────────────────────────────────────────────────────────────────
 function resetForm() {
   form.reset();
   setState('empty');
   formError.style.display = 'none';
+  currentJobId = null;
+  localStorage.removeItem(DRAFT_KEY);
+  document.getElementById('draftBar').classList.remove('visible');
 }
 
-/* helpers */
+// ── CSV Import ────────────────────────────────────────────────────────────────
+function importCSV(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const lines = e.target.result.split('\n').map(l => l.trim()).filter(Boolean);
+      if (lines.length < 2) { alert('CSV braucht mindestens eine Kopfzeile und eine Datenzeile.'); return; }
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      const vals = lines[1].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+      const row = {};
+      headers.forEach((h, i) => { row[h] = vals[i] || ''; });
+      const MAP = {
+        address: 'address', city: 'city', zip_code: 'zip_code',
+        property_type: 'property_type', size_sqm: 'size_sqm', rooms: 'rooms',
+        purchase_price: 'purchase_price', monthly_rent: 'monthly_rent',
+        year_built: 'year_built', energy_class: 'energy_class', features: 'features', notes: 'notes',
+      };
+      Object.entries(MAP).forEach(([key, id]) => {
+        const el = document.getElementById(id);
+        if (el && row[key]) el.value = row[key];
+      });
+      document.getElementById('draftBar').classList.add('visible');
+      document.getElementById('draftBar').firstChild.textContent = '📂 CSV importiert — ';
+    } catch(err) { alert('Fehler beim Lesen der CSV: ' + err.message); }
+  };
+  reader.readAsText(file, 'utf-8');
+  input.value = '';
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 const v   = id => document.getElementById(id).value.trim();
 const num = id => parseFloat(v(id)) || null;
-const int = id => parseInt(v(id))   || null;
+const int = id => parseInt(v(id)) || null;
 </script>
 
 {% endblock %}

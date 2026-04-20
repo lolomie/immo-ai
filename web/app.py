@@ -1,67 +1,120 @@
 import json
+import logging
 import os
 import sys
 import uuid
 from datetime import datetime, timezone
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, Response, jsonify, render_template, request, stream_with_context
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from src.generator import generate_expose
+from src.generator import generate_expose, stream_expose
 from src.models import JobResult, PropertyInput
 from src.validator import validate_expose
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+
 app = Flask(__name__)
 
-LOGS_DIR = os.path.join(os.path.dirname(__file__), "..", "logs")
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=[],
+    storage_uri="memory://",
+)
 
+LOGS_DIR = os.path.join(os.path.dirname(__file__), "..", "logs")
+ACCESS_PASSWORD = os.environ.get("ACCESS_PASSWORD", "")
+
+
+def check_auth():
+    if not ACCESS_PASSWORD:
+        return True
+    return request.headers.get("X-Access-Key", "") == ACCESS_PASSWORD
+
+
+def _parse_property(data: dict):
+    if not data.get("property_id"):
+        data["property_id"] = "WEB-" + str(uuid.uuid4())[:6].upper()
+    if isinstance(data.get("features"), str):
+        data["features"] = [f.strip() for f in data["features"].split(",") if f.strip()]
+    for field in ("purchase_price", "monthly_rent", "year_built"):
+        if data.get(field) in ("", None, 0):
+            data[field] = None
+    return PropertyInput(**data)
+
+
+def _save_job(job: JobResult):
+    os.makedirs(LOGS_DIR, exist_ok=True)
+    path = os.path.join(LOGS_DIR, f"{job.job_id}.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(job.model_dump(), f, ensure_ascii=False, indent=2)
+
+
+# ── Error handlers ────────────────────────────────────────────────────────────
+
+@app.errorhandler(404)
+def not_found(e):
+    return render_template("404.html"), 404
+
+
+@app.errorhandler(500)
+def server_error(e):
+    app.logger.error("500 error: %s", e)
+    return render_template("500.html"), 500
+
+
+@app.errorhandler(429)
+def rate_limited(e):
+    return jsonify({"error": "Zu viele Anfragen — bitte kurz warten."}), 429
+
+
+# ── Pages ─────────────────────────────────────────────────────────────────────
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", auth_required=bool(ACCESS_PASSWORD))
 
 
 @app.route("/generate")
 def generate_page():
-    return render_template("generate.html")
+    return render_template("generate.html", auth_required=bool(ACCESS_PASSWORD))
 
 
 @app.route("/review")
 def review_page():
-    return render_template("review.html")
+    return render_template("review.html", auth_required=bool(ACCESS_PASSWORD))
 
+
+# ── API: Generate ─────────────────────────────────────────────────────────────
 
 @app.route("/api/generate", methods=["POST"])
+@limiter.limit("10 per minute")
 def api_generate():
+    if not check_auth():
+        return jsonify({"error": "Nicht autorisiert"}), 401
     data = request.get_json()
     if not data:
         return jsonify({"error": "Kein JSON erhalten"}), 400
-
-    if not data.get("property_id"):
-        data["property_id"] = "WEB-" + str(uuid.uuid4())[:6].upper()
-
-    if isinstance(data.get("features"), str):
-        data["features"] = [f.strip() for f in data["features"].split(",") if f.strip()]
-
-    for field in ("purchase_price", "monthly_rent", "year_built"):
-        if data.get(field) in ("", None, 0):
-            data[field] = None
-
     try:
-        property_data = PropertyInput(**data)
+        property_data = _parse_property(data)
     except Exception as e:
         return jsonify({"error": f"Ungültige Eingabe: {e}"}), 400
-
     try:
         expose_text = generate_expose(property_data)
         validation = validate_expose(property_data, expose_text)
     except Exception as e:
+        app.logger.error("Generation failed: %s", e)
         return jsonify({"error": f"Generierung fehlgeschlagen: {e}"}), 500
-
-    job_id = str(uuid.uuid4())[:8]
     job = JobResult(
-        job_id=job_id,
+        job_id=str(uuid.uuid4())[:8],
         timestamp=datetime.now(timezone.utc).isoformat(),
         status="pending",
         property_id=property_data.property_id,
@@ -69,51 +122,159 @@ def api_generate():
         hallucination_detected=validation["hallucinated"],
         hallucination_details=validation["details"],
     )
-
-    os.makedirs(LOGS_DIR, exist_ok=True)
-    log_path = os.path.join(LOGS_DIR, f"{job_id}.json")
-    with open(log_path, "w", encoding="utf-8") as f:
-        json.dump(job.model_dump(), f, ensure_ascii=False, indent=2)
-
+    _save_job(job)
+    app.logger.info("Job created: %s for %s", job.job_id, property_data.property_id)
     return jsonify(job.model_dump())
 
 
+@app.route("/api/generate/stream", methods=["POST"])
+@limiter.limit("10 per minute")
+def api_generate_stream():
+    if not check_auth():
+        return jsonify({"error": "Nicht autorisiert"}), 401
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Kein JSON erhalten"}), 400
+    try:
+        property_data = _parse_property(data)
+    except Exception as e:
+        return jsonify({"error": f"Ungültige Eingabe: {e}"}), 400
+
+    job_id = str(uuid.uuid4())[:8]
+
+    def generate():
+        full_text = []
+        try:
+            for chunk in stream_expose(property_data):
+                full_text.append(chunk)
+                yield f"data: {json.dumps({'type': 'chunk', 'text': chunk})}\n\n"
+
+            yield f"data: {json.dumps({'type': 'validating'})}\n\n"
+
+            expose_text = "".join(full_text)
+            validation = validate_expose(property_data, expose_text)
+
+            job = JobResult(
+                job_id=job_id,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                status="pending",
+                property_id=property_data.property_id,
+                expose_text=expose_text,
+                hallucination_detected=validation["hallucinated"],
+                hallucination_details=validation["details"],
+            )
+            _save_job(job)
+            app.logger.info("Stream job created: %s for %s", job_id, property_data.property_id)
+            yield f"data: {json.dumps({'type': 'done', 'job': job.model_dump()})}\n\n"
+        except Exception as e:
+            app.logger.error("Stream failed: %s", e)
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+# ── API: Jobs ─────────────────────────────────────────────────────────────────
+
 @app.route("/api/jobs")
 def api_jobs():
+    if not check_auth():
+        return jsonify({"error": "Nicht autorisiert"}), 401
     if not os.path.isdir(LOGS_DIR):
-        return jsonify([])
+        return jsonify({"jobs": [], "total": 0, "page": 1, "limit": 20})
+
+    status_filter = request.args.get("status", "pending")
+    page = max(1, int(request.args.get("page", 1)))
+    limit = min(100, max(1, int(request.args.get("limit", 20))))
+
     jobs = []
     for fname in os.listdir(LOGS_DIR):
         if not fname.endswith(".json"):
             continue
-        path = os.path.join(LOGS_DIR, fname)
-        with open(path, "r", encoding="utf-8") as f:
-            job = json.load(f)
-        if job.get("status") == "pending":
+        try:
+            with open(os.path.join(LOGS_DIR, fname), "r", encoding="utf-8") as f:
+                job = json.load(f)
+        except Exception:
+            continue
+        if status_filter == "all" or job.get("status") == status_filter:
             jobs.append(job)
+
     jobs.sort(key=lambda j: j.get("timestamp", ""), reverse=True)
-    return jsonify(jobs)
+    total = len(jobs)
+    start = (page - 1) * limit
+    return jsonify({"jobs": jobs[start: start + limit], "total": total, "page": page, "limit": limit})
+
+
+@app.route("/api/jobs/export")
+def api_jobs_export():
+    if not check_auth():
+        return jsonify({"error": "Nicht autorisiert"}), 401
+    if not os.path.isdir(LOGS_DIR):
+        return Response("[]", mimetype="application/json")
+
+    status_filter = request.args.get("status", "approved")
+    jobs = []
+    for fname in os.listdir(LOGS_DIR):
+        if not fname.endswith(".json"):
+            continue
+        try:
+            with open(os.path.join(LOGS_DIR, fname), "r", encoding="utf-8") as f:
+                job = json.load(f)
+        except Exception:
+            continue
+        if status_filter == "all" or job.get("status") == status_filter:
+            jobs.append(job)
+
+    jobs.sort(key=lambda j: j.get("timestamp", ""), reverse=True)
+    return Response(
+        json.dumps(jobs, ensure_ascii=False, indent=2),
+        mimetype="application/json",
+        headers={"Content-Disposition": f"attachment; filename=immo-ai-{status_filter}.json"},
+    )
+
+
+@app.route("/api/jobs/<job_id>", methods=["PATCH"])
+def api_patch_job(job_id):
+    if not check_auth():
+        return jsonify({"error": "Nicht autorisiert"}), 401
+    data = request.get_json()
+    path = os.path.join(LOGS_DIR, f"{job_id}.json")
+    if not os.path.exists(path):
+        return jsonify({"error": "Job nicht gefunden"}), 404
+    with open(path, "r", encoding="utf-8") as f:
+        job = json.load(f)
+    if "expose_text" in data:
+        job["expose_text"] = str(data["expose_text"])
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(job, f, ensure_ascii=False, indent=2)
+    return jsonify({"ok": True})
 
 
 @app.route("/api/review/<job_id>", methods=["POST"])
+@limiter.limit("30 per minute")
 def api_review(job_id):
+    if not check_auth():
+        return jsonify({"error": "Nicht autorisiert"}), 401
     data = request.get_json()
     action = data.get("action")
     reviewer = data.get("reviewer", "").strip() or "Anonym"
     note = data.get("note", "").strip()
 
-    log_path = os.path.join(LOGS_DIR, f"{job_id}.json")
-    if not os.path.exists(log_path):
+    path = os.path.join(LOGS_DIR, f"{job_id}.json")
+    if not os.path.exists(path):
         return jsonify({"error": "Job nicht gefunden"}), 404
 
-    with open(log_path, "r", encoding="utf-8") as f:
+    with open(path, "r", encoding="utf-8") as f:
         job = json.load(f)
 
     if action == "approve":
         job["status"] = "approved"
         job["reviewed_by"] = reviewer
         job["review_note"] = None
-        export_path = log_path.replace(".json", "_approved.txt")
+        export_path = path.replace(".json", "_approved.txt")
         with open(export_path, "w", encoding="utf-8") as f:
             f.write(job["expose_text"])
     elif action == "reject":
@@ -123,12 +284,14 @@ def api_review(job_id):
     else:
         return jsonify({"error": "Ungültige Aktion"}), 400
 
-    with open(log_path, "w", encoding="utf-8") as f:
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(job, f, ensure_ascii=False, indent=2)
 
+    app.logger.info("Job %s %sd by %s", job_id, action, reviewer)
     return jsonify({"ok": True, "status": job["status"]})
 
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
+    app.logger.info("Starting Immo AI on port %d, LOGS_DIR=%s", port, LOGS_DIR)
     app.run(debug=False, host="0.0.0.0", port=port)

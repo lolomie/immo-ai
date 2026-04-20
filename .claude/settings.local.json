@@ -20,20 +20,9 @@
       "Bash(git push *)",
       "Bash(gh api *)",
       "Bash(python -c \"from dotenv import load_dotenv; import os; load_dotenv\\(\\); k=os.getenv\\('ANTHROPIC_API_KEY',''\\); print\\(f'Key geladen: {bool\\(k\\)}, Länge: {len\\(k\\)}, Anfang: {k[:15]}...'\\)\")",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5000)"
-    ]
-  },
-  "hooks": {
-    "stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "cd \"/c/Users/Suhad/Documents/Claude/Projects/Immo AI/CODE\" && git add -A && git diff --staged --quiet || (git commit -m \"auto: sync changes [claude]\" && git push origin master)"
-          }
-        ]
-      }
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5000)",
+      "Bash(python -c \"from web.app import app; print\\('OK'\\)\")",
+      "Bash(python -c \"from src.generator import generate_expose, stream_expose; from src.validator import validate_expose; print\\('src OK'\\)\")"
     ]
   }
 }

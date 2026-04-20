@@ -504,6 +504,44 @@ footer a:hover { color: #fff; }
 .empty-state-icon { font-size: 3rem; margin-bottom: 1rem; }
 .empty-state h3 { font-size: 1.125rem; font-weight: 700; color: var(--navy-800); margin-bottom: .5rem; }
 
+/* ── Auth Modal ── */
+.auth-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.55);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+.auth-modal {
+  width: 100%;
+  max-width: 380px;
+  padding: 2rem 2rem 2.25rem;
+}
+.auth-input {
+  width: 100%;
+  padding: .65rem .875rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-family: inherit;
+  transition: border-color .15s, box-shadow .15s;
+}
+.auth-input:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+}
+
+/* ── Print ── */
+@media print {
+  nav, footer, .hero-actions, .stats-bar,
+  .cta-section, .pricing, .btn, .alert-info { display: none !important; }
+  body { color: #000; background: #fff; }
+  .section-title { font-size: 18pt; }
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
   nav { padding: 0 1rem; }

@@ -2,6 +2,15 @@
 {% block title %}Review — Immo AI{% endblock %}
 
 {% block content %}
+<style>
+  @media print {
+    nav, footer, .app-header, .review-summary, .review-controls, .review-actions,
+    .review-pagination, .alert-info { display: none !important; }
+    .job-card { border: 1px solid #ccc; margin-bottom: 1rem; }
+    .job-body { display: block !important; }
+    .expose-edit-area { border: none; padding: 0; font-size: 11pt; }
+  }
+</style>
 
 <div class="app-header">
   <h1>Exposé-Review</h1>
@@ -12,12 +21,35 @@
 
   <div class="review-summary">
     <div>
-      <div class="pending-count"><span id="pendingCount">–</span> ausstehend</div>
+      <div class="pending-count"><span id="pendingCount">–</span> gefunden</div>
       <div style="font-size:.875rem; color:var(--slate); margin-top:.2rem;">
         Kein Exposé wird ohne Ihre Freigabe veröffentlicht.
       </div>
     </div>
-    <button class="btn btn-outline btn-sm" onclick="loadJobs()">↻ Aktualisieren</button>
+    <div style="display:flex; gap:.625rem; flex-wrap:wrap; align-items:center;">
+      <a id="exportBtn" href="#" class="btn btn-outline btn-sm" onclick="exportJobs(event)">↓ Export</a>
+      <button class="btn btn-outline btn-sm" onclick="loadJobs()">↻ Aktualisieren</button>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="review-controls" style="display:flex; gap:.875rem; margin-bottom:1.5rem; flex-wrap:wrap; align-items:center;">
+    <div style="display:flex; align-items:center; gap:.5rem;">
+      <label style="font-size:.875rem; font-weight:600; color:var(--navy-700);">Status:</label>
+      <select id="statusFilter" onchange="loadJobs()" style="padding:.4rem .7rem; border:1.5px solid var(--border); border-radius:6px; font-size:.875rem; color:var(--navy-800); background:var(--bg);">
+        <option value="pending">Ausstehend</option>
+        <option value="approved">Freigegeben</option>
+        <option value="rejected">Abgelehnt</option>
+        <option value="all">Alle</option>
+      </select>
+    </div>
+    <div style="display:flex; align-items:center; gap:.5rem;">
+      <label style="font-size:.875rem; font-weight:600; color:var(--navy-700);">Sortierung:</label>
+      <select id="sortOrder" onchange="renderJobs(currentJobs)" style="padding:.4rem .7rem; border:1.5px solid var(--border); border-radius:6px; font-size:.875rem; color:var(--navy-800); background:var(--bg);">
+        <option value="desc">Neueste zuerst</option>
+        <option value="asc">Älteste zuerst</option>
+      </select>
+    </div>
   </div>
 
   <div class="alert alert-info" style="margin-bottom:1.5rem;">
@@ -25,67 +57,105 @@
   </div>
 
   <div id="jobsContainer">
-    <div class="empty-state">
-      <div class="empty-state-icon">⏳</div>
-      <h3>Wird geladen…</h3>
-    </div>
+    <div class="empty-state"><div class="empty-state-icon">⏳</div><h3>Wird geladen…</h3></div>
+  </div>
+
+  <!-- Pagination -->
+  <div id="pagination" class="review-pagination" style="display:none; margin-top:1.5rem; display:flex; justify-content:center; align-items:center; gap:1rem;">
+    <button id="prevBtn" class="btn btn-outline btn-sm" onclick="changePage(-1)">← Zurück</button>
+    <span id="pageInfo" style="font-size:.875rem; color:var(--slate);"></span>
+    <button id="nextBtn" class="btn btn-outline btn-sm" onclick="changePage(1)">Weiter →</button>
   </div>
 
 </div>
 
 <script>
+let currentJobs = [];
+let currentPage = 1;
+const PAGE_SIZE = 20;
+let totalJobs = 0;
+
 async function loadJobs() {
+  const status = document.getElementById('statusFilter').value;
   try {
-    const res = await fetch('/api/jobs');
-    const jobs = await res.json();
-    renderJobs(jobs);
+    const res = await fetch(`/api/jobs?status=${status}&page=${currentPage}&limit=${PAGE_SIZE}`, {
+      headers: { 'X-Access-Key': window.IMMOAI_KEY || '' }
+    });
+    const data = await res.json();
+    if (!res.ok) { showError(data.error || 'Fehler'); return; }
+    totalJobs = data.total;
+    currentJobs = data.jobs;
+    document.getElementById('pendingCount').textContent = totalJobs;
+    renderJobs(currentJobs);
+    updatePagination();
   } catch (err) {
-    document.getElementById('jobsContainer').innerHTML =
-      '<div class="alert alert-error">Fehler beim Laden: ' + err.message + '</div>';
+    showError('Netzwerkfehler: ' + err.message);
   }
 }
 
-function renderJobs(jobs) {
-  const container = document.getElementById('jobsContainer');
-  document.getElementById('pendingCount').textContent = jobs.length;
+function showError(msg) {
+  document.getElementById('jobsContainer').innerHTML =
+    `<div class="alert alert-error">${escHtml(msg)}</div>`;
+}
 
-  if (jobs.length === 0) {
+function renderJobs(jobs) {
+  const order = document.getElementById('sortOrder').value;
+  const sorted = [...jobs].sort((a, b) => {
+    const cmp = (a.timestamp || '').localeCompare(b.timestamp || '');
+    return order === 'asc' ? cmp : -cmp;
+  });
+  const container = document.getElementById('jobsContainer');
+  if (sorted.length === 0) {
+    const status = document.getElementById('statusFilter').value;
     container.innerHTML = `
       <div class="empty-state">
         <div class="empty-state-icon">✅</div>
-        <h3>Keine ausstehenden Exposés</h3>
+        <h3>Keine ${status === 'pending' ? 'ausstehenden' : ''} Exposés</h3>
         <p style="color:var(--slate); margin-top:.5rem;">Alle Jobs wurden bearbeitet.</p>
         <a href="/generate" class="btn btn-primary" style="margin-top:1.5rem;">Neues Exposé generieren</a>
       </div>`;
     return;
   }
+  container.innerHTML = sorted.map(job => jobCard(job)).join('');
+}
 
-  container.innerHTML = jobs.map(job => jobCard(job)).join('');
+function updatePagination() {
+  const totalPages = Math.ceil(totalJobs / PAGE_SIZE);
+  const pag = document.getElementById('pagination');
+  if (totalPages <= 1) { pag.style.display = 'none'; return; }
+  pag.style.display = 'flex';
+  document.getElementById('pageInfo').textContent = `Seite ${currentPage} von ${totalPages}`;
+  document.getElementById('prevBtn').disabled = currentPage <= 1;
+  document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+}
+
+function changePage(delta) {
+  currentPage += delta;
+  if (currentPage < 1) currentPage = 1;
+  loadJobs();
 }
 
 function jobCard(job) {
   const ts = new Date(job.timestamp).toLocaleString('de-DE', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit'
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
   });
-
+  const statusColors = { pending: 'badge-pending', approved: 'badge-success', rejected: 'badge-warning' };
+  const statusLabels = { pending: 'ausstehend', approved: 'freigegeben', rejected: 'abgelehnt' };
+  const statusBadge = `<span class="badge ${statusColors[job.status] || 'badge-pending'}">${statusLabels[job.status] || job.status}</span>`;
   const hallBadge = job.hallucination_detected
     ? `<span class="badge badge-warning">⚠ Auffälligkeiten</span>`
     : `<span class="badge badge-success">✓ Geprüft</span>`;
-
   const hallAlert = job.hallucination_detected
-    ? `<div class="alert alert-warning" style="margin-bottom:1.25rem;">
-        <strong>Prüfung hat Auffälligkeiten erkannt:</strong> ${escHtml(job.hallucination_details)}
-       </div>`
+    ? `<div class="alert alert-warning" style="margin-bottom:1.25rem;"><strong>Auffälligkeiten erkannt:</strong> ${escHtml(job.hallucination_details)}</div>`
     : '';
+  const isPending = job.status === 'pending';
 
   return `
   <div class="job-card" id="job-${job.job_id}">
     <div class="job-header" onclick="toggleJob('${job.job_id}')">
       <div class="job-meta">
         <span class="job-property">${escHtml(job.property_id)}</span>
-        <span class="badge badge-pending">ausstehend</span>
-        ${hallBadge}
+        ${statusBadge} ${hallBadge}
       </div>
       <div style="display:flex; align-items:center; gap:1rem;">
         <span class="job-id">#${escHtml(job.job_id)}</span>
@@ -93,51 +163,42 @@ function jobCard(job) {
         <span id="chevron-${job.job_id}" style="color:var(--slate); font-size:.75rem;">▼</span>
       </div>
     </div>
-
     <div class="job-body" id="body-${job.job_id}">
       ${hallAlert}
-
       <div class="job-expose">
-        <h4>Generiertes Exposé</h4>
-        <div class="expose-text">${escHtml(job.expose_text)}</div>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:.75rem;">
+          <h4 style="font-size:.8125rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--slate);">Generiertes Exposé</h4>
+          ${isPending ? `<button class="btn btn-outline btn-sm" onclick="toggleEditJob('${job.job_id}')" id="editJobBtn-${job.job_id}" style="font-size:.75rem; padding:.3rem .7rem;">Bearbeiten</button>` : ''}
+        </div>
+        <textarea class="expose-edit-area" id="exposeEdit-${job.job_id}" readonly
+          style="width:100%; min-height:180px; max-height:380px; overflow-y:auto; resize:vertical; padding:1rem 1.25rem; background:var(--bg-subtle); border:1.5px solid var(--border); border-radius:8px; font-size:.9375rem; line-height:1.75; color:var(--navy-800); font-family:inherit; white-space:pre-wrap;"
+        >${escHtml(job.expose_text)}</textarea>
       </div>
-
-      <div class="review-actions">
-        <h4>Entscheidung</h4>
+      ${isPending ? `
+      <div class="review-actions" style="border-top:1px solid var(--border); padding-top:1.25rem; margin-top:1.25rem;">
         <div class="review-form">
-
           <div class="field" style="max-width:320px;">
             <label>Ihr Name (für Prüfpfad)</label>
             <input type="text" id="reviewer-${job.job_id}" placeholder="z. B. Maria Müller">
           </div>
-
           <div class="reject-note" id="rejectNote-${job.job_id}">
             <div class="field" style="max-width:480px;">
               <label>Ablehnungsgrund</label>
               <textarea id="note-${job.job_id}" placeholder="z. B. Preis stimmt nicht, Ausstattung unvollständig…" style="min-height:60px;"></textarea>
             </div>
           </div>
-
           <div class="review-buttons">
-            <button class="btn btn-success" onclick="submitReview('${job.job_id}', 'approve')">
-              ✓ Freigeben
-            </button>
-            <button class="btn btn-danger" id="rejectBtn-${job.job_id}"
-              onclick="toggleRejectNote('${job.job_id}')">
-              ✗ Ablehnen
-            </button>
-            <button class="btn btn-outline btn-sm"
-              id="confirmReject-${job.job_id}"
-              style="display:none;"
-              onclick="submitReview('${job.job_id}', 'reject')">
-              Ablehnung bestätigen
-            </button>
+            <button class="btn btn-success" onclick="submitReview('${job.job_id}', 'approve')">✓ Freigeben</button>
+            <button class="btn btn-danger" id="rejectBtn-${job.job_id}" onclick="toggleRejectNote('${job.job_id}')">✗ Ablehnen</button>
+            <button class="btn btn-outline btn-sm" id="confirmReject-${job.job_id}" style="display:none;" onclick="submitReview('${job.job_id}', 'reject')">Ablehnung bestätigen</button>
           </div>
-
           <div id="reviewError-${job.job_id}" class="alert alert-error" style="display:none;"></div>
-
         </div>
-      </div>
+      </div>` : `
+      <div style="padding-top:1.25rem; margin-top:1.25rem; border-top:1px solid var(--border); font-size:.875rem; color:var(--slate);">
+        ${job.reviewed_by ? `Bearbeitet von <strong>${escHtml(job.reviewed_by)}</strong>` : ''}
+        ${job.review_note ? ` · Grund: ${escHtml(job.review_note)}` : ''}
+      </div>`}
     </div>
   </div>`;
 }
@@ -147,6 +208,30 @@ function toggleJob(jobId) {
   const chevron = document.getElementById('chevron-' + jobId);
   const open = body.classList.toggle('open');
   chevron.textContent = open ? '▲' : '▼';
+}
+
+function toggleEditJob(jobId) {
+  const ta = document.getElementById('exposeEdit-' + jobId);
+  const btn = document.getElementById('editJobBtn-' + jobId);
+  const isEditing = !ta.readOnly;
+  if (isEditing) {
+    // save
+    fetch('/api/jobs/' + jobId, {
+      method: 'PATCH',
+      headers: Object.assign({'Content-Type':'application/json'}, window.IMMOAI_KEY ? {'X-Access-Key': window.IMMOAI_KEY} : {}),
+      body: JSON.stringify({ expose_text: ta.value }),
+    });
+    ta.readOnly = true;
+    ta.style.borderColor = '';
+    ta.style.background = 'var(--bg-subtle)';
+    btn.textContent = 'Bearbeiten';
+  } else {
+    ta.readOnly = false;
+    ta.style.borderColor = 'var(--blue)';
+    ta.style.background = '#fafcff';
+    ta.focus();
+    btn.textContent = '✓ Speichern';
+  }
 }
 
 function toggleRejectNote(jobId) {
@@ -159,10 +244,9 @@ function toggleRejectNote(jobId) {
 }
 
 async function submitReview(jobId, action) {
-  const reviewer = document.getElementById('reviewer-' + jobId).value.trim();
+  const reviewer = document.getElementById('reviewer-' + jobId)?.value.trim() || '';
   const note = document.getElementById('note-' + jobId)?.value.trim() || '';
   const errEl = document.getElementById('reviewError-' + jobId);
-
   errEl.style.display = 'none';
 
   if (action === 'reject' && !note) {
@@ -174,42 +258,39 @@ async function submitReview(jobId, action) {
   try {
     const res = await fetch('/api/review/' + jobId, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: Object.assign({'Content-Type':'application/json'}, window.IMMOAI_KEY ? {'X-Access-Key': window.IMMOAI_KEY} : {}),
       body: JSON.stringify({ action, reviewer: reviewer || 'Anonym', note }),
     });
     const data = await res.json();
-
-    if (!res.ok) {
-      errEl.textContent = data.error || 'Fehler';
-      errEl.style.display = 'block';
-      return;
-    }
+    if (!res.ok) { errEl.textContent = data.error || 'Fehler'; errEl.style.display = 'block'; return; }
 
     const card = document.getElementById('job-' + jobId);
     const label = action === 'approve' ? 'Freigegeben ✓' : 'Abgelehnt ✗';
     const color = action === 'approve' ? 'var(--green-bg)' : 'var(--red-bg)';
     const border = action === 'approve' ? 'var(--green-border)' : 'var(--red-border)';
-
     card.style.background = color;
     card.style.borderColor = border;
-    card.querySelector('.job-header').innerHTML =
-      `<span style="font-weight:700;">${label} — ${escHtml(jobId)}</span>`;
+    card.querySelector('.job-header').innerHTML = `<span style="font-weight:700; padding:.25rem 0;">${label} — #${escHtml(jobId)}</span>`;
     card.querySelector('.job-body').remove();
 
-    const count = parseInt(document.getElementById('pendingCount').textContent) - 1;
-    document.getElementById('pendingCount').textContent = Math.max(0, count);
+    const cnt = parseInt(document.getElementById('pendingCount').textContent) || 0;
+    document.getElementById('pendingCount').textContent = Math.max(0, cnt - 1);
   } catch (err) {
     errEl.textContent = 'Netzwerkfehler: ' + err.message;
     errEl.style.display = 'block';
   }
 }
 
+async function exportJobs(e) {
+  e.preventDefault();
+  const status = document.getElementById('statusFilter').value;
+  window.location.href = `/api/jobs/export?status=${status}`;
+}
+
 function escHtml(str) {
   return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 loadJobs();

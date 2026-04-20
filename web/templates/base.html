@@ -25,5 +25,60 @@
   <p>© 2025 Immo AI &nbsp;·&nbsp; <a href="/#kontakt">Kontakt</a> &nbsp;·&nbsp; Alle Exposés erfordern menschliche Freigabe.</p>
 </footer>
 
+<!-- Auth Modal -->
+{% if auth_required %}
+<div id="authOverlay" class="auth-overlay">
+  <div class="auth-modal card">
+    <div style="font-size:2rem; margin-bottom:1rem; text-align:center;">🔒</div>
+    <h2 style="font-size:1.25rem; font-weight:800; color:var(--navy); margin-bottom:.5rem; text-align:center;">Zugang erforderlich</h2>
+    <p style="font-size:.9rem; color:var(--slate); text-align:center; margin-bottom:1.5rem;">Passwort eingeben um fortzufahren.</p>
+    <div class="field" style="margin-bottom:1rem;">
+      <input type="password" id="authInput" placeholder="Passwort" class="auth-input" autocomplete="current-password" onkeydown="if(event.key==='Enter') submitAuth()">
+    </div>
+    <div id="authError" class="alert alert-error" style="display:none; margin-bottom:1rem;">Falsches Passwort.</div>
+    <button class="btn btn-primary" style="width:100%;" onclick="submitAuth()">Anmelden</button>
+  </div>
+</div>
+{% endif %}
+
+<script>
+window.IMMOAI_KEY = localStorage.getItem('immoai_key') || '';
+
+{% if auth_required %}
+(function() {
+  const key = window.IMMOAI_KEY;
+  if (!key) { showAuthModal(); return; }
+  fetch('/api/jobs?limit=1', { headers: { 'X-Access-Key': key } })
+    .then(r => { if (r.status === 401) { localStorage.removeItem('immoai_key'); window.IMMOAI_KEY = ''; showAuthModal(); } });
+})();
+
+function showAuthModal() {
+  document.getElementById('authOverlay').style.display = 'flex';
+  setTimeout(() => document.getElementById('authInput').focus(), 100);
+}
+
+function submitAuth() {
+  const key = document.getElementById('authInput').value;
+  fetch('/api/jobs?limit=1', { headers: { 'X-Access-Key': key } })
+    .then(r => {
+      if (r.ok) {
+        window.IMMOAI_KEY = key;
+        localStorage.setItem('immoai_key', key);
+        document.getElementById('authOverlay').style.display = 'none';
+      } else {
+        document.getElementById('authError').style.display = 'block';
+      }
+    })
+    .catch(() => { document.getElementById('authError').style.display = 'block'; });
+}
+{% endif %}
+
+function apiHeaders() {
+  const h = { 'Content-Type': 'application/json' };
+  if (window.IMMOAI_KEY) h['X-Access-Key'] = window.IMMOAI_KEY;
+  return h;
+}
+</script>
+
 </body>
 </html>
