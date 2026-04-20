@@ -16,6 +16,9 @@
     <li><a href="/generate">Generator</a></li>
     <li><a href="/review">Review</a></li>
     <li><a class="nav-cta" href="/#kontakt">Demo anfragen</a></li>
+    {% if session.get('logged_in') %}
+    <li><a href="/logout" style="color:var(--slate-light); font-size:.85rem;">Abmelden</a></li>
+    {% endif %}
   </ul>
 </nav>
 

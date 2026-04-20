@@ -1,11 +1,12 @@
 import json
 import logging
 import os
+import secrets
 import sys
 import uuid
 from datetime import datetime, timezone
 
-from flask import Flask, Response, jsonify, render_template, request, stream_with_context
+from flask import Flask, Response, jsonify, redirect, render_template, request, session, stream_with_context, url_for
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
@@ -14,6 +15,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from src.generator import generate_expose, stream_expose
 from src.models import JobResult, PropertyInput
 from src.validator import validate_expose
+from .auth import api_login_required, check_credentials, login_required
 
 logging.basicConfig(
     level=logging.INFO,
@@ -22,6 +24,10 @@ logging.basicConfig(
 )
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
+
+if not os.environ.get("SECRET_KEY"):
+    app.logger.warning("SECRET_KEY not set — sessions will reset on restart. Set SECRET_KEY env var in production.")
 
 limiter = Limiter(
     get_remote_address,
@@ -31,13 +37,6 @@ limiter = Limiter(
 )
 
 LOGS_DIR = os.path.join(os.path.dirname(__file__), "..", "logs")
-ACCESS_PASSWORD = os.environ.get("ACCESS_PASSWORD", "")
-
-
-def check_auth():
-    if not ACCESS_PASSWORD:
-        return True
-    return request.headers.get("X-Access-Key", "") == ACCESS_PASSWORD
 
 
 def _parse_property(data: dict):
@@ -76,30 +75,60 @@ def rate_limited(e):
     return jsonify({"error": "Zu viele Anfragen — bitte kurz warten."}), 429
 
 
-# ── Pages ─────────────────────────────────────────────────────────────────────
+# ── Auth routes ───────────────────────────────────────────────────────────────
+
+@app.route("/login", methods=["GET", "POST"])
+def login_page():
+    if session.get("logged_in"):
+        return redirect(url_for("generate_page"))
+
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        if check_credentials(username, password):
+            session["logged_in"] = True
+            session["username"] = username
+            app.logger.info("Login: %s", username)
+            return redirect(request.args.get("next") or url_for("generate_page"))
+        app.logger.warning("Failed login attempt for user: %s", username)
+        return render_template("login.html", error="Falsche Zugangsdaten", username=username)
+
+    return render_template("login.html", error=None, username="")
+
+
+@app.route("/logout")
+def logout():
+    username = session.get("username", "unknown")
+    session.clear()
+    app.logger.info("Logout: %s", username)
+    return redirect(url_for("login_page"))
+
+
+# ── Pages (protected) ─────────────────────────────────────────────────────────
 
 @app.route("/")
 def index():
-    return render_template("index.html", auth_required=bool(ACCESS_PASSWORD))
+    return render_template("index.html", auth_required=False)
 
 
 @app.route("/generate")
+@login_required
 def generate_page():
-    return render_template("generate.html", auth_required=bool(ACCESS_PASSWORD))
+    return render_template("generate.html", auth_required=False)
 
 
 @app.route("/review")
+@login_required
 def review_page():
-    return render_template("review.html", auth_required=bool(ACCESS_PASSWORD))
+    return render_template("review.html", auth_required=False)
 
 
 # ── API: Generate ─────────────────────────────────────────────────────────────
 
 @app.route("/api/generate", methods=["POST"])
 @limiter.limit("10 per minute")
+@api_login_required
 def api_generate():
-    if not check_auth():
-        return jsonify({"error": "Nicht autorisiert"}), 401
     data = request.get_json()
     if not data:
         return jsonify({"error": "Kein JSON erhalten"}), 400
@@ -129,9 +158,8 @@ def api_generate():
 
 @app.route("/api/generate/stream", methods=["POST"])
 @limiter.limit("10 per minute")
+@api_login_required
 def api_generate_stream():
-    if not check_auth():
-        return jsonify({"error": "Nicht autorisiert"}), 401
     data = request.get_json()
     if not data:
         return jsonify({"error": "Kein JSON erhalten"}), 400
@@ -164,7 +192,7 @@ def api_generate_stream():
                 hallucination_details=validation["details"],
             )
             _save_job(job)
-            app.logger.info("Stream job created: %s for %s", job_id, property_data.property_id)
+            app.logger.info("Stream job: %s for %s", job_id, property_data.property_id)
             yield f"data: {json.dumps({'type': 'done', 'job': job.model_dump()})}\n\n"
         except Exception as e:
             app.logger.error("Stream failed: %s", e)
@@ -180,9 +208,8 @@ def api_generate_stream():
 # ── API: Jobs ─────────────────────────────────────────────────────────────────
 
 @app.route("/api/jobs")
+@api_login_required
 def api_jobs():
-    if not check_auth():
-        return jsonify({"error": "Nicht autorisiert"}), 401
     if not os.path.isdir(LOGS_DIR):
         return jsonify({"jobs": [], "total": 0, "page": 1, "limit": 20})
 
@@ -209,9 +236,8 @@ def api_jobs():
 
 
 @app.route("/api/jobs/export")
+@api_login_required
 def api_jobs_export():
-    if not check_auth():
-        return jsonify({"error": "Nicht autorisiert"}), 401
     if not os.path.isdir(LOGS_DIR):
         return Response("[]", mimetype="application/json")
 
@@ -237,9 +263,8 @@ def api_jobs_export():
 
 
 @app.route("/api/jobs/<job_id>", methods=["PATCH"])
+@api_login_required
 def api_patch_job(job_id):
-    if not check_auth():
-        return jsonify({"error": "Nicht autorisiert"}), 401
     data = request.get_json()
     path = os.path.join(LOGS_DIR, f"{job_id}.json")
     if not os.path.exists(path):
@@ -255,12 +280,11 @@ def api_patch_job(job_id):
 
 @app.route("/api/review/<job_id>", methods=["POST"])
 @limiter.limit("30 per minute")
+@api_login_required
 def api_review(job_id):
-    if not check_auth():
-        return jsonify({"error": "Nicht autorisiert"}), 401
     data = request.get_json()
     action = data.get("action")
-    reviewer = data.get("reviewer", "").strip() or "Anonym"
+    reviewer = data.get("reviewer", "").strip() or session.get("username", "Anonym")
     note = data.get("note", "").strip()
 
     path = os.path.join(LOGS_DIR, f"{job_id}.json")
