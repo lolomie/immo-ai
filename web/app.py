@@ -67,12 +67,16 @@ def _save_job(job: JobResult):
 
 @app.errorhandler(404)
 def not_found(e):
+    if request.path.startswith("/api/") or request.path.startswith("/calendar/"):
+        return jsonify({"error": "Nicht gefunden"}), 404
     return render_template("404.html"), 404
 
 
 @app.errorhandler(500)
 def server_error(e):
     app.logger.error("500 error: %s", e)
+    if request.path.startswith("/api/") or request.path.startswith("/calendar/"):
+        return jsonify({"error": "Interner Serverfehler"}), 500
     return render_template("500.html"), 500
 
 
@@ -260,56 +264,71 @@ def api_generate_stream():
 @app.route("/api/jobs")
 @api_login_required
 def api_jobs():
-    if not os.path.isdir(LOGS_DIR):
-        return jsonify({"jobs": [], "total": 0, "page": 1, "limit": 20})
+    try:
+        if not os.path.isdir(LOGS_DIR):
+            return jsonify({"jobs": [], "total": 0, "page": 1, "limit": 20})
 
-    status_filter = request.args.get("status", "pending")
-    page = max(1, int(request.args.get("page", 1)))
-    limit = min(100, max(1, int(request.args.get("limit", 20))))
-
-    jobs = []
-    for fname in os.listdir(LOGS_DIR):
-        if not fname.endswith(".json"):
-            continue
+        status_filter = request.args.get("status", "pending")
         try:
-            with open(os.path.join(LOGS_DIR, fname), "r", encoding="utf-8") as f:
-                job = json.load(f)
-        except Exception:
-            continue
-        if status_filter == "all" or job.get("status") == status_filter:
-            jobs.append(job)
+            page = max(1, int(request.args.get("page", 1)))
+            limit = min(100, max(1, int(request.args.get("limit", 20))))
+        except (ValueError, TypeError):
+            page, limit = 1, 20
 
-    jobs.sort(key=lambda j: j.get("timestamp", ""), reverse=True)
-    total = len(jobs)
-    start = (page - 1) * limit
-    return jsonify({"jobs": jobs[start: start + limit], "total": total, "page": page, "limit": limit})
+        jobs = []
+        for fname in os.listdir(LOGS_DIR):
+            if not fname.endswith(".json"):
+                continue
+            try:
+                with open(os.path.join(LOGS_DIR, fname), "r", encoding="utf-8") as f:
+                    job = json.load(f)
+            except Exception:
+                continue
+            if not isinstance(job, dict):
+                continue
+            if status_filter == "all" or job.get("status") == status_filter:
+                jobs.append(job)
+
+        jobs.sort(key=lambda j: j.get("timestamp", "") or "", reverse=True)
+        total = len(jobs)
+        start = (page - 1) * limit
+        return jsonify({"jobs": jobs[start: start + limit], "total": total, "page": page, "limit": limit})
+    except Exception as e:
+        app.logger.error("api_jobs error: %s", e, exc_info=True)
+        return jsonify({"error": "Fehler beim Laden der Jobs"}), 500
 
 
 @app.route("/api/jobs/export")
 @api_login_required
 def api_jobs_export():
-    if not os.path.isdir(LOGS_DIR):
-        return Response("[]", mimetype="application/json")
+    try:
+        if not os.path.isdir(LOGS_DIR):
+            return Response("[]", mimetype="application/json")
 
-    status_filter = request.args.get("status", "approved")
-    jobs = []
-    for fname in os.listdir(LOGS_DIR):
-        if not fname.endswith(".json"):
-            continue
-        try:
-            with open(os.path.join(LOGS_DIR, fname), "r", encoding="utf-8") as f:
-                job = json.load(f)
-        except Exception:
-            continue
-        if status_filter == "all" or job.get("status") == status_filter:
-            jobs.append(job)
+        status_filter = request.args.get("status", "approved")
+        jobs = []
+        for fname in os.listdir(LOGS_DIR):
+            if not fname.endswith(".json"):
+                continue
+            try:
+                with open(os.path.join(LOGS_DIR, fname), "r", encoding="utf-8") as f:
+                    job = json.load(f)
+            except Exception:
+                continue
+            if not isinstance(job, dict):
+                continue
+            if status_filter == "all" or job.get("status") == status_filter:
+                jobs.append(job)
 
-    jobs.sort(key=lambda j: j.get("timestamp", ""), reverse=True)
-    return Response(
-        json.dumps(jobs, ensure_ascii=False, indent=2),
-        mimetype="application/json",
-        headers={"Content-Disposition": f"attachment; filename=immo-ai-{status_filter}.json"},
-    )
+        jobs.sort(key=lambda j: j.get("timestamp", "") or "", reverse=True)
+        return Response(
+            json.dumps(jobs, ensure_ascii=False, indent=2),
+            mimetype="application/json",
+            headers={"Content-Disposition": f"attachment; filename=immo-ai-{status_filter}.json"},
+        )
+    except Exception as e:
+        app.logger.error("api_jobs_export error: %s", e, exc_info=True)
+        return jsonify({"error": "Export fehlgeschlagen"}), 500
 
 
 @app.route("/api/jobs/<job_id>", methods=["PATCH"])

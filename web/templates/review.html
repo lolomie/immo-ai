@@ -81,8 +81,16 @@ async function loadJobs() {
     const res = await fetch(`/api/jobs?status=${status}&page=${currentPage}&limit=${PAGE_SIZE}`, {
       headers: { 'X-Access-Key': window.IMMOAI_KEY || '' }
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        showError('Nicht eingeloggt — bitte <a href="/login">hier anmelden</a>.');
+      } else {
+        showError(data.error || `Serverfehler (${res.status})`);
+      }
+      return;
+    }
     const data = await res.json();
-    if (!res.ok) { showError(data.error || 'Fehler'); return; }
     totalJobs = data.total;
     currentJobs = data.jobs;
     document.getElementById('pendingCount').textContent = totalJobs;
@@ -284,7 +292,27 @@ async function submitReview(jobId, action) {
 async function exportJobs(e) {
   e.preventDefault();
   const status = document.getElementById('statusFilter').value;
-  window.location.href = `/api/jobs/export?status=${status}`;
+  try {
+    const res = await fetch(`/api/jobs/export?status=${status}`, {
+      headers: { 'X-Access-Key': window.IMMOAI_KEY || '' }
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      showError(data.error || `Export fehlgeschlagen (${res.status})`);
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `immo-ai-${status}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    showError('Export fehlgeschlagen: ' + err.message);
+  }
 }
 
 function escHtml(str) {
