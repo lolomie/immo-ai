@@ -4,11 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Immo AI{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
 
-<nav>
+<nav id="mainNav">
   <a class="nav-logo" href="/"><span>Immo</span> AI</a>
   <ul class="nav-links">
     <li><a href="/#wie-es-funktioniert">So funktioniert's</a></li>
@@ -16,12 +19,13 @@
     <li><a href="/generate">Generator</a></li>
     <li><a href="/review">Review</a></li>
     <li><a href="/calendar">Kalender</a></li>
+    <li><a href="/about">Über uns</a></li>
     <li><a class="nav-cta" href="/#kontakt">Demo anfragen</a></li>
     {% if session.get('logged_in') %}
     <li><a href="/generate" class="nav-cta" style="background:var(--green);">Dashboard</a></li>
     <li><a href="/logout" style="color:var(--slate-light); font-size:.85rem;">Abmelden</a></li>
     {% else %}
-    <li><a href="/login" class="nav-cta" style="background:transparent; border:1.5px solid rgba(255,255,255,.35); color:#fff;">Login</a></li>
+    <li><a href="/login" class="nav-cta" style="background:transparent; border:1.5px solid rgba(255,255,255,.3); color:#fff;">Login</a></li>
     {% endif %}
   </ul>
 </nav>
@@ -29,27 +33,49 @@
 {% block content %}{% endblock %}
 
 <footer>
-  <p>© 2025 Immo AI &nbsp;·&nbsp; <a href="/#kontakt">Kontakt</a> &nbsp;·&nbsp; Alle Exposés erfordern menschliche Freigabe.</p>
+  <p>© 2025 Immo AI &nbsp;·&nbsp; <a href="/about">Über uns</a> &nbsp;·&nbsp; <a href="/impressum">Impressum</a> &nbsp;·&nbsp; <a href="/#kontakt">Kontakt</a> &nbsp;·&nbsp; Alle Exposés erfordern menschliche Freigabe.</p>
 </footer>
 
-<!-- Auth Modal -->
 {% if auth_required %}
 <div id="authOverlay" class="auth-overlay">
   <div class="auth-modal card">
-    <div style="font-size:2rem; margin-bottom:1rem; text-align:center;">🔒</div>
-    <h2 style="font-size:1.25rem; font-weight:800; color:var(--navy); margin-bottom:.5rem; text-align:center;">Zugang erforderlich</h2>
-    <p style="font-size:.9rem; color:var(--slate); text-align:center; margin-bottom:1.5rem;">Passwort eingeben um fortzufahren.</p>
+    <div style="font-size:1.75rem; margin-bottom:1rem; text-align:center;">🔒</div>
+    <h2 style="font-size:1.125rem; font-weight:800; color:var(--navy); margin-bottom:.375rem; text-align:center;">Zugang erforderlich</h2>
+    <p style="font-size:.875rem; color:var(--slate); text-align:center; margin-bottom:1.5rem;">Passwort eingeben um fortzufahren.</p>
     <div class="field" style="margin-bottom:1rem;">
       <input type="password" id="authInput" placeholder="Passwort" class="auth-input" autocomplete="current-password" onkeydown="if(event.key==='Enter') submitAuth()">
     </div>
     <div id="authError" class="alert alert-error" style="display:none; margin-bottom:1rem;">Falsches Passwort.</div>
-    <button class="btn btn-primary" style="width:100%;" onclick="submitAuth()">Anmelden</button>
+    <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="submitAuth()">Anmelden</button>
   </div>
 </div>
 {% endif %}
 
 <script>
 window.IMMOAI_KEY = localStorage.getItem('immoai_key') || '';
+
+/* Nav scroll effect */
+(function() {
+  const nav = document.getElementById('mainNav');
+  window.addEventListener('scroll', function() {
+    nav.classList.toggle('scrolled', window.scrollY > 20);
+  }, { passive: true });
+})();
+
+/* Scroll reveal */
+(function() {
+  const els = document.querySelectorAll('.reveal');
+  if (!els.length) return;
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+        io.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+  els.forEach(el => io.observe(el));
+})();
 
 {% if auth_required %}
 (function() {

@@ -6,7 +6,13 @@ from dataclasses import asdict, dataclass
 from datetime import date, datetime
 from typing import List, Optional
 
-CALENDAR_FILE = os.path.join(os.path.dirname(__file__), "..", "logs", "calendar.json")
+# On Vercel (read-only filesystem) write to /tmp; otherwise use local logs/
+_is_vercel = os.environ.get("VERCEL") == "1"
+CALENDAR_FILE = (
+    "/tmp/calendar.json"
+    if _is_vercel
+    else os.path.join(os.path.dirname(__file__), "..", "logs", "calendar.json")
+)
 
 APPOINTMENT_TYPES = ("Besichtigung", "Call")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")

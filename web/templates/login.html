@@ -3,51 +3,66 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Immo AI Login</title>
+  <title>Login — Immo AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #0f172a;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #070e1d;
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 1.5rem;
       -webkit-font-smoothing: antialiased;
+      position: relative;
+      overflow: hidden;
+    }
+    body::before {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 700px; height: 500px;
+      background: radial-gradient(ellipse, rgba(37,99,235,.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .login-wrap {
+      width: 100%; max-width: 400px;
+      animation: loginIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+    @keyframes loginIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
     .login-card {
       background: #fff;
-      border-radius: 12px;
-      padding: 2.5rem 2.25rem;
-      width: 100%;
-      max-width: 380px;
-      box-shadow: 0 20px 40px rgba(0,0,0,.3);
+      border-radius: 20px;
+      padding: 2.75rem 2.5rem;
+      box-shadow: 0 24px 64px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.06);
     }
     .logo {
       text-align: center;
-      margin-bottom: 2rem;
+      margin-bottom: 2.25rem;
     }
     .logo-text {
-      font-size: 1.75rem;
-      font-weight: 800;
+      font-size: 1.875rem;
+      font-weight: 900;
       color: #0f172a;
-      letter-spacing: -.04em;
+      letter-spacing: -.06em;
+      line-height: 1;
     }
     .logo-text span { color: #2563eb; }
     .logo-sub {
       font-size: .8125rem;
       color: #64748b;
-      margin-top: .25rem;
+      margin-top: .375rem;
+      font-weight: 500;
     }
-    h1 {
-      font-size: 1.125rem;
-      font-weight: 700;
-      color: #0f172a;
-      margin-bottom: 1.5rem;
-      letter-spacing: -.02em;
-    }
-    .field { margin-bottom: 1rem; }
+    .field { margin-bottom: .875rem; }
     label {
       display: block;
       font-size: .8125rem;
@@ -57,69 +72,94 @@
     }
     input {
       width: 100%;
-      padding: .65rem .875rem;
+      padding: .7rem .9rem;
       border: 1.5px solid #e2e8f0;
-      border-radius: 8px;
+      border-radius: 9px;
       font-size: .9375rem;
       color: #1e293b;
       background: #fff;
-      transition: border-color .15s, box-shadow .15s;
+      transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
       font-family: inherit;
     }
+    input:hover:not(:focus) { border-color: #cbd5e1; }
     input:focus {
       outline: none;
       border-color: #2563eb;
       box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+      background: #fafcff;
     }
-    .error {
+    .error-box {
       background: #fef2f2;
       border: 1px solid #fecaca;
       color: #991b1b;
-      border-radius: 7px;
-      padding: .65rem .875rem;
+      border-radius: 8px;
+      padding: .7rem .9rem;
       font-size: .875rem;
-      margin-bottom: 1.25rem;
-      display: {% if error %}block{% else %}none{% endif %};
+      margin-bottom: 1.125rem;
+      display: {% if error %}flex{% else %}none{% endif %};
+      align-items: center;
+      gap: .5rem;
     }
-    button {
+    .submit-btn {
       width: 100%;
-      padding: .75rem;
+      padding: .8rem;
       background: #2563eb;
       color: #fff;
       border: none;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: 600;
+      border-radius: 9px;
+      font-size: .9375rem;
+      font-weight: 700;
       cursor: pointer;
-      transition: background .15s;
+      transition: background 180ms ease, box-shadow 180ms ease, transform 180ms ease;
       font-family: inherit;
       margin-top: .5rem;
+      letter-spacing: -.01em;
     }
-    button:hover { background: #1d4ed8; }
-    button:active { background: #1e40af; }
+    .submit-btn:hover {
+      background: #1d4ed8;
+      box-shadow: 0 6px 18px rgba(37,99,235,.35);
+      transform: translateY(-1px);
+    }
+    .submit-btn:active { background: #1e40af; transform: translateY(0); }
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 1.375rem;
+      font-size: .8125rem;
+      color: #94a3b8;
+      text-decoration: none;
+      transition: color 180ms ease;
+    }
+    .back-link:hover { color: #64748b; }
   </style>
 </head>
 <body>
-  <div class="login-card">
-    <div class="logo">
-      <div class="logo-text"><span>Immo</span> AI</div>
-      <div class="logo-sub">Interner Zugang</div>
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="logo">
+        <div class="logo-text"><span>Immo</span> AI</div>
+        <div class="logo-sub">Interner Zugang</div>
+      </div>
+
+      {% if error %}
+      <div class="error-box">⚠ {{ error }}</div>
+      {% endif %}
+
+      <form method="POST" action="/login">
+        <div class="field">
+          <label for="username">Benutzername</label>
+          <input type="text" id="username" name="username" autocomplete="username"
+                 value="{{ username or '' }}" autofocus required>
+        </div>
+        <div class="field">
+          <label for="password">Passwort</label>
+          <input type="password" id="password" name="password" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="submit-btn">Anmelden</button>
+      </form>
+
+      <a href="/" class="back-link">← Zurück zur Startseite</a>
     </div>
-
-    <div class="error">{{ error }}</div>
-
-    <form method="POST" action="/login">
-      <div class="field">
-        <label for="username">Benutzername</label>
-        <input type="text" id="username" name="username" autocomplete="username"
-               value="{{ username or '' }}" autofocus required>
-      </div>
-      <div class="field">
-        <label for="password">Passwort</label>
-        <input type="password" id="password" name="password" autocomplete="current-password" required>
-      </div>
-      <button type="submit">Anmelden</button>
-    </form>
   </div>
 </body>
 </html>

@@ -1,9 +1,11 @@
-const form = document.getElementById('appointmentForm');
-const list = document.getElementById('appointmentList');
-const countBadge = document.getElementById('apptCount');
-const formError = document.getElementById('formError');
+const form        = document.getElementById('appointmentForm');
+const list        = document.getElementById('appointmentList');
+const countBadge  = document.getElementById('apptCount');
+const formError   = document.getElementById('formError');
 const formSuccess = document.getElementById('formSuccess');
-const submitBtn = document.getElementById('submitBtn');
+const submitBtn   = document.getElementById('submitBtn');
+
+const TODAY = new Date().toISOString().slice(0, 10);
 
 async function loadAppointments() {
   try {
@@ -17,38 +19,84 @@ async function loadAppointments() {
 
 function renderList(appointments) {
   const count = appointments.length;
-  countBadge.textContent = count + ' Termin' + (count !== 1 ? 'e' : '');
-  countBadge.style.display = count ? 'inline-flex' : 'none';
+  if (count > 0) {
+    countBadge.textContent = count + ' Termin' + (count !== 1 ? 'e' : '');
+    countBadge.style.display = 'inline-flex';
+  } else {
+    countBadge.style.display = 'none';
+  }
 
   if (!count) {
-    list.innerHTML = `<div class="empty-state">
-      <div class="empty-state-icon">📋</div>
-      <h3>Noch keine Termine</h3>
-      <p>Erstelle deinen ersten Termin links.</p>
-    </div>`;
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">📋</div>
+        <h3>Noch keine Termine</h3>
+        <p style="color:var(--slate); font-size:.875rem; margin-top:.375rem;">
+          Erstelle deinen ersten Termin links.
+        </p>
+      </div>`;
     return;
   }
 
-  const sorted = [...appointments].sort((a, b) => (a.date + a.time) < (b.date + b.time) ? -1 : 1);
-  list.innerHTML = sorted.map(a => {
-    const dateStr = a.date.split('-').reverse().join('.');
-    const isCall = a.type === 'Call';
-    return `<div class="appt-card">
-      <div style="flex:1; min-width:0;">
-        <div class="appt-title">
-          ${escHtml(a.client_name)}
-          <span class="appt-badge${isCall ? ' call' : ''}">${escHtml(a.type)}</span>
-        </div>
-        <div class="appt-meta">
-          ${dateStr} um ${escHtml(a.time)} Uhr
-          ${a.property_id ? '· Objekt: ' + escHtml(a.property_id) : ''}
-          ${a.client_contact ? '· ' + escHtml(a.client_contact) : ''}
-        </div>
-        ${a.notes ? `<div style="font-size:.8rem; color:var(--slate); margin-top:.35rem;">${escHtml(a.notes)}</div>` : ''}
-      </div>
-      <button class="btn btn-danger btn-sm" onclick="deleteAppointment('${escHtml(a.appointment_id)}')">Löschen</button>
+  const sorted = [...appointments].sort((a, b) =>
+    (a.date + a.time) < (b.date + b.time) ? -1 : 1
+  );
+
+  const todayAppts    = sorted.filter(a => a.date === TODAY);
+  const upcomingAppts = sorted.filter(a => a.date !== TODAY);
+
+  let html = '';
+
+  if (todayAppts.length) {
+    html += `<div class="today-section">
+      <div class="today-section-label">Heute</div>
+      ${todayAppts.map(renderCard).join('')}
     </div>`;
-  }).join('');
+  }
+
+  if (upcomingAppts.length) {
+    const label = todayAppts.length ? 'Weitere Termine' : 'Anstehende Termine';
+    html += `<div>
+      <div class="upcoming-section-label">${label}</div>
+      ${upcomingAppts.map(renderCard).join('')}
+    </div>`;
+  }
+
+  list.innerHTML = html;
+}
+
+function renderCard(a) {
+  const isToday = a.date === TODAY;
+  const dateStr = a.date.split('-').reverse().join('.');
+  const isCall  = a.type === 'Call';
+  const todayTag = isToday
+    ? `<div class="appt-today-tag">● Heute</div>`
+    : '';
+
+  return `<div class="appt-card${isToday ? ' today' : ''}" id="appt-${escHtml(a.appointment_id)}">
+    <div style="flex:1; min-width:0;">
+      ${todayTag}
+      <div class="appt-title">
+        ${escHtml(a.client_name)}
+        <span class="appt-badge${isCall ? ' call' : ''}">${escHtml(a.type)}</span>
+      </div>
+      <div class="appt-meta">
+        ${dateStr} · ${escHtml(a.time)} Uhr
+        ${a.property_id ? `· <strong>${escHtml(a.property_id)}</strong>` : ''}
+      </div>
+      ${a.client_contact
+        ? `<div class="appt-contact">📞 ${escHtml(a.client_contact)}</div>`
+        : ''}
+      ${a.notes
+        ? `<div class="appt-notes">${escHtml(a.notes)}</div>`
+        : ''}
+    </div>
+    <button class="btn btn-outline btn-sm del-btn"
+      style="color:var(--red); border-color:var(--red-border); flex-shrink:0;"
+      onclick="deleteAppointment('${escHtml(a.appointment_id)}')">
+      Löschen
+    </button>
+  </div>`;
 }
 
 function escHtml(str) {
@@ -63,12 +111,13 @@ function showError(msg) {
   formError.textContent = msg;
   formError.style.display = 'block';
   formSuccess.style.display = 'none';
+  formError.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function showSuccess() {
   formSuccess.style.display = 'block';
   formError.style.display = 'none';
-  setTimeout(() => { formSuccess.style.display = 'none'; }, 3000);
+  setTimeout(() => { formSuccess.style.display = 'none'; }, 3500);
 }
 
 form.addEventListener('submit', async (e) => {
@@ -81,10 +130,8 @@ form.addEventListener('submit', async (e) => {
   const time = form.time.value;
 
   if (!client_name) return showError('Kundenname ist erforderlich.');
-  if (!date) return showError('Datum ist erforderlich.');
-  if (!time) return showError('Uhrzeit ist erforderlich.');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return showError('Ungültiges Datumsformat.');
-  if (!/^\d{2}:\d{2}$/.test(time)) return showError('Ungültiges Uhrzeitformat.');
+  if (!date)        return showError('Datum ist erforderlich.');
+  if (!time)        return showError('Uhrzeit ist erforderlich.');
 
   submitBtn.disabled = true;
   submitBtn.innerHTML = '<span class="spinner"></span> Speichern…';
@@ -94,12 +141,12 @@ form.addEventListener('submit', async (e) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        property_id: form.property_id.value.trim(),
+        property_id:    form.property_id.value.trim(),
         client_name,
         client_contact: form.client_contact.value.trim(),
         date,
         time,
-        type: form.type.value,
+        type:  form.type.value,
         notes: form.notes.value.trim(),
       }),
     });
@@ -121,6 +168,13 @@ form.addEventListener('submit', async (e) => {
 
 async function deleteAppointment(id) {
   if (!confirm('Termin wirklich löschen?')) return;
+
+  const card = document.getElementById('appt-' + id);
+  if (card) {
+    card.classList.add('removing');
+    await new Promise(r => setTimeout(r, 220));
+  }
+
   try {
     const res = await fetch('/calendar/delete', {
       method: 'POST',
@@ -130,6 +184,7 @@ async function deleteAppointment(id) {
     if (res.ok) loadAppointments();
   } catch {
     alert('Fehler beim Löschen.');
+    if (card) card.classList.remove('removing');
   }
 }
 

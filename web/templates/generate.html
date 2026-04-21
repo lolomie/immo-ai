@@ -5,19 +5,23 @@
 <style>
   .gen-wrapper {
     display: grid;
-    grid-template-columns: 480px 1fr;
+    grid-template-columns: 460px 1fr;
     min-height: calc(100vh - 64px);
     align-items: start;
   }
   .gen-left {
     border-right: 1px solid var(--border);
-    padding: 2rem 2rem 3rem;
+    padding: 2rem 1.875rem 3rem;
     background: var(--bg-subtle);
     min-height: calc(100vh - 64px);
+    position: sticky;
+    top: 64px;
+    max-height: calc(100vh - 64px);
+    overflow-y: auto;
   }
-  .gen-intro { margin-bottom: 2rem; }
-  .gen-intro h1 { font-size: 1.375rem; font-weight: 800; color: var(--navy); letter-spacing: -.03em; margin-bottom: .35rem; }
-  .gen-intro p { font-size: .9rem; color: var(--slate); line-height: 1.6; }
+  .gen-intro { margin-bottom: 1.75rem; }
+  .gen-intro h1 { font-size: 1.25rem; font-weight: 800; color: var(--navy); letter-spacing: -.03em; margin-bottom: .3rem; }
+  .gen-intro p { font-size: .875rem; color: var(--slate); line-height: 1.6; }
 
   .draft-bar {
     display: none;
@@ -25,11 +29,11 @@
     justify-content: space-between;
     background: #eff6ff;
     border: 1px solid #bfdbfe;
-    border-radius: 6px;
+    border-radius: var(--radius);
     padding: .5rem .875rem;
     font-size: .8125rem;
     color: #1e40af;
-    margin-bottom: 1rem;
+    margin-bottom: 1.25rem;
   }
   .draft-bar.visible { display: flex; }
   .draft-bar button { background: none; border: none; color: #1e40af; cursor: pointer; font-size: .8125rem; text-decoration: underline; padding: 0; }
@@ -42,82 +46,113 @@
   }
   .section-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
-  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: .875rem; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
   .form-row.single { grid-template-columns: 1fr; }
-  .form-row + .form-row { margin-top: .875rem; }
+  .form-row + .form-row { margin-top: .75rem; }
 
   .field label { font-size: .8rem; font-weight: 600; color: var(--navy-700); margin-bottom: .3rem; display: block; }
   .field label .opt { font-weight: 400; color: var(--slate-light); font-size: .75rem; }
   .field input, .field select, .field textarea {
-    width: 100%; padding: .55rem .8rem;
-    border: 1.5px solid var(--border); border-radius: 6px;
+    width: 100%; padding: .575rem .8rem;
+    border: 1.5px solid var(--border); border-radius: var(--radius);
     font-size: .9rem; color: var(--navy-800); background: var(--bg);
-    transition: border-color .15s, box-shadow .15s;
+    transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);
     font-family: inherit;
+  }
+  .field input:hover:not(:focus), .field select:hover:not(:focus), .field textarea:hover:not(:focus) {
+    border-color: #cbd5e1;
   }
   .field input:focus, .field select:focus, .field textarea:focus {
     outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+    background: #fafcff;
   }
-  .field input.invalid, .field select.invalid { border-color: var(--red); }
+  .field input.invalid, .field select.invalid { border-color: var(--red) !important; }
   .field .field-err { font-size: .75rem; color: var(--red); margin-top: .25rem; display: none; }
   .field.has-error .field-err { display: block; }
-  .field textarea { resize: vertical; min-height: 70px; }
+  .field textarea { resize: vertical; min-height: 72px; }
   .field-hint { font-size: .75rem; color: var(--slate-light); margin-top: .3rem; display: block; }
 
   .submit-area { margin-top: 1.75rem; }
   .submit-row { display: flex; gap: .625rem; align-items: center; }
-  #submitBtn { flex: 1; justify-content: center; padding: .8rem; font-size: 1rem; border-radius: 8px; }
+  #submitBtn { flex: 1; justify-content: center; padding: .8rem; font-size: .9375rem; border-radius: var(--radius); }
   .csv-label {
     display: inline-flex; align-items: center; gap: .4rem;
-    padding: .55rem .875rem; border-radius: 8px; font-size: .8125rem; font-weight: 600;
+    padding: .575rem .875rem; border-radius: var(--radius); font-size: .8125rem; font-weight: 600;
     cursor: pointer; border: 1.5px solid var(--border); color: var(--navy-700);
-    background: var(--bg); transition: border-color .15s, background .15s;
+    background: var(--bg); transition: border-color var(--transition), background var(--transition);
     white-space: nowrap;
   }
-  .csv-label:hover { border-color: var(--navy-700); background: var(--bg-subtle); }
+  .csv-label:hover { border-color: var(--navy-700); background: #f1f5f9; }
   #csvInput { display: none; }
   #formError {
     display: none; margin-top: .875rem; padding: .75rem 1rem;
     background: var(--red-bg); border: 1px solid var(--red-border);
-    border-radius: 6px; font-size: .875rem; color: #991b1b;
+    border-radius: var(--radius); font-size: .875rem; color: #991b1b;
   }
 
-  /* RIGHT */
+  /* ── Right panel ── */
   .gen-right { padding: 2rem; position: sticky; top: 64px; max-height: calc(100vh - 64px); overflow-y: auto; }
 
   .output-empty {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    min-height: 420px; text-align: center; color: var(--slate);
+    min-height: 480px; text-align: center; color: var(--slate);
   }
   .output-empty-icon {
-    width: 72px; height: 72px; background: var(--bg-subtle);
-    border: 2px dashed var(--border); border-radius: 16px;
+    width: 80px; height: 80px;
+    background: var(--bg-subtle);
+    border: 2px dashed var(--border); border-radius: 20px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 1.75rem; margin-bottom: 1.25rem;
+    font-size: 2rem; margin-bottom: 1.5rem;
+    transition: border-color var(--transition);
   }
-  .output-empty h3 { font-size: 1rem; font-weight: 700; color: var(--navy-800); margin-bottom: .4rem; }
-  .output-empty p { font-size: .875rem; max-width: 280px; line-height: 1.6; }
+  .output-empty h3 { font-size: 1.0625rem; font-weight: 700; color: var(--navy-800); margin-bottom: .5rem; }
+  .output-empty p { font-size: .875rem; max-width: 260px; line-height: 1.65; }
 
+  /* Streaming */
   .output-streaming { display: none; }
-  .output-streaming .stream-header { display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem; }
-  .stream-indicator { width: 8px; height: 8px; background: var(--blue); border-radius: 50%; animation: pulse .8s ease-in-out infinite; }
-  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.3; } }
+  .output-streaming .stream-header {
+    display: flex; align-items: center; gap: .75rem; margin-bottom: 1.25rem;
+    padding: .75rem 1rem;
+    background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius);
+  }
+  .stream-indicator {
+    width: 8px; height: 8px; background: var(--blue);
+    border-radius: 50%; animation: pulse .8s ease-in-out infinite; flex-shrink: 0;
+  }
   .stream-label { font-size: .875rem; font-weight: 600; color: var(--blue); }
 
+  /* Validating */
   .output-validating { display: none; }
-  .output-validating .val-header { display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem; }
-  .val-spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin .7s linear infinite; }
+  .output-validating .val-header {
+    display: flex; align-items: center; gap: .75rem; margin-bottom: 1.25rem;
+    padding: .75rem 1rem;
+    background: var(--bg-subtle); border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  .val-spinner {
+    width: 16px; height: 16px; border: 2px solid var(--border);
+    border-top-color: var(--blue); border-radius: 50%;
+    animation: spin .7s linear infinite; flex-shrink: 0;
+  }
   .val-label { font-size: .875rem; font-weight: 600; color: var(--slate); }
 
+  /* Result */
   .output-result { display: none; }
-  .result-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: .75rem; }
-  .result-header h2 { font-size: 1rem; font-weight: 800; color: var(--navy); }
+  .output-result.visible { display: block; animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+  .result-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1rem; flex-wrap: wrap; gap: .75rem;
+    padding-bottom: .875rem; border-bottom: 1px solid var(--border);
+  }
+  .result-header h2 { font-size: 1rem; font-weight: 800; color: var(--navy); letter-spacing: -.02em; }
 
   .expose-box {
-    background: var(--bg); border: 1.5px solid var(--border); border-radius: 8px;
-    padding: 1.25rem 1.5rem; font-size: .9375rem; line-height: 1.75;
+    background: var(--bg);
+    border: 1.5px solid var(--border); border-radius: var(--radius-lg);
+    padding: 1.5rem 1.75rem; font-size: .9375rem; line-height: 1.8;
     color: var(--navy-800); white-space: pre-wrap; margin-bottom: 1rem;
-    max-height: 380px; overflow-y: auto; min-height: 80px;
+    max-height: 400px; overflow-y: auto; min-height: 80px;
+    font-family: 'Inter', inherit;
+    box-shadow: var(--shadow);
   }
   .expose-box[contenteditable="true"] {
     border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,99,235,.1);
@@ -128,26 +163,25 @@
   .ai-disclaimer {
     display: flex; align-items: flex-start; gap: .6rem;
     background: var(--amber-bg); border: 1px solid var(--amber-border);
-    border-radius: 6px; padding: .75rem 1rem; font-size: .8125rem;
+    border-radius: var(--radius); padding: .75rem 1rem; font-size: .8125rem;
     color: #92400e; margin-bottom: 1rem; line-height: 1.5;
   }
-  .ai-disclaimer-icon { flex-shrink: 0; font-size: 1rem; margin-top: .05rem; }
-  .result-actions { display: flex; gap: .625rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .result-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1rem; }
   .job-meta { font-size: .775rem; color: var(--slate-light); padding-top: .75rem; border-top: 1px solid var(--border); }
-  .job-meta code { font-family: monospace; color: var(--slate); }
+  .job-meta code { font-family: ui-monospace, monospace; color: var(--slate); font-size: .8rem; }
 
-  @media (max-width: 900px) {
+  @media (max-width: 920px) {
     .gen-wrapper { grid-template-columns: 1fr; }
-    .gen-left { border-right: none; border-bottom: 1px solid var(--border); min-height: auto; }
+    .gen-left { border-right: none; border-bottom: 1px solid var(--border); min-height: auto; position: static; max-height: none; }
     .gen-right { position: static; max-height: none; }
-    .output-empty { min-height: 200px; }
+    .output-empty { min-height: 240px; }
   }
 
   @media print {
-    nav, footer, .gen-left, .gen-intro, .ai-disclaimer, .result-actions, .job-meta { display: none !important; }
+    nav, footer, .gen-left, .ai-disclaimer, .result-actions, .job-meta { display: none !important; }
     .gen-wrapper { display: block; }
     .gen-right { position: static; max-height: none; padding: 0; }
-    .expose-box { border: none; padding: 0; max-height: none; font-size: 11pt; line-height: 1.8; }
+    .expose-box { border: none; padding: 0; max-height: none; font-size: 11pt; line-height: 1.85; box-shadow: none; }
     .result-header { margin-bottom: .5rem; }
   }
 </style>
@@ -176,7 +210,7 @@
           <span class="field-err">Pflichtfeld</span>
         </div>
       </div>
-      <div class="form-row" style="margin-top:.875rem;">
+      <div class="form-row" style="margin-top:.75rem;">
         <div class="field" id="f_city">
           <label>Stadt</label>
           <input type="text" id="city" placeholder="München">
@@ -206,7 +240,7 @@
           <input type="number" id="year_built" placeholder="1998" min="1800" max="2030">
         </div>
       </div>
-      <div class="form-row" style="margin-top:.875rem;">
+      <div class="form-row" style="margin-top:.75rem;">
         <div class="field" id="f_size_sqm">
           <label>Wohnfläche (m²)</label>
           <input type="number" id="size_sqm" placeholder="78.5" step="0.5" min="1">
@@ -218,7 +252,7 @@
           <span class="field-err">Pflichtfeld</span>
         </div>
       </div>
-      <div class="form-row" style="margin-top:.875rem;">
+      <div class="form-row" style="margin-top:.75rem;">
         <div class="field">
           <label>Energieklasse <span class="opt">optional</span></label>
           <select id="energy_class">
@@ -250,7 +284,7 @@
           <span class="field-hint">Nur tatsächlich vorhandene Merkmale — fließen direkt ins Exposé ein.</span>
         </div>
       </div>
-      <div class="form-row single" style="margin-top:.875rem;">
+      <div class="form-row single" style="margin-top:.75rem;">
         <div class="field">
           <label>Interne Notizen <span class="opt">nicht im Exposé</span></label>
           <textarea id="notes" placeholder="Eigentümer möchte schnell verkaufen, Preis verhandelbar…"></textarea>
@@ -261,7 +295,7 @@
       <div class="submit-area">
         <div class="submit-row">
           <button type="submit" class="btn btn-primary" id="submitBtn">✦ Exposé generieren</button>
-          <label class="csv-label" title="CSV importieren: address,city,zip_code,property_type,size_sqm,rooms,...">
+          <label class="csv-label" title="CSV importieren">
             📂 CSV
             <input type="file" id="csvInput" accept=".csv,text/csv" onchange="importCSV(this)">
           </label>
@@ -275,14 +309,12 @@
   <!-- RIGHT — OUTPUT -->
   <div class="gen-right">
 
-    <!-- Empty -->
     <div class="output-empty" id="stateEmpty">
       <div class="output-empty-icon">📄</div>
       <h3>Noch kein Exposé</h3>
-      <p>Fülle das Formular links aus und klicke auf „Exposé generieren" — das Ergebnis erscheint hier.</p>
+      <p>Fülle das Formular aus und klicke auf „Exposé generieren" — das Ergebnis erscheint hier.</p>
     </div>
 
-    <!-- Streaming -->
     <div class="output-streaming" id="stateStreaming">
       <div class="stream-header">
         <div class="stream-indicator"></div>
@@ -291,7 +323,6 @@
       <div class="expose-box streaming" id="streamText"></div>
     </div>
 
-    <!-- Validating -->
     <div class="output-validating" id="stateValidating">
       <div class="val-header">
         <div class="val-spinner"></div>
@@ -300,7 +331,6 @@
       <div class="expose-box" id="validatingText"></div>
     </div>
 
-    <!-- Result -->
     <div class="output-result" id="stateResult">
       <div class="result-header">
         <h2>Generiertes Exposé</h2>
@@ -311,8 +341,8 @@
       <div class="expose-box" id="exposeText" spellcheck="false"></div>
 
       <div class="ai-disclaimer">
-        <span class="ai-disclaimer-icon">⚠️</span>
-        <span>Dieses Exposé wurde KI-gestützt erstellt. Bitte vor Veröffentlichung prüfen.</span>
+        <span style="flex-shrink:0;">⚠️</span>
+        <span>Dieses Exposé wurde KI-gestützt erstellt. Bitte vor Veröffentlichung sorgfältig prüfen.</span>
       </div>
 
       <div class="result-actions">
@@ -321,11 +351,11 @@
         <button class="btn btn-outline btn-sm" id="editBtn" onclick="toggleEdit()">Bearbeiten</button>
         <button class="btn btn-outline btn-sm" onclick="downloadTxt()">↓ .txt</button>
         <button class="btn btn-outline btn-sm" onclick="window.print()">Drucken</button>
-        <button class="btn btn-outline btn-sm" onclick="resetForm()">Neu starten</button>
+        <button class="btn btn-outline btn-sm" onclick="resetForm()">↺ Neu</button>
       </div>
 
       <div class="job-meta">
-        Job <code id="jobId"></code> · Status: ausstehend
+        Job <code id="jobId"></code> · Status: ausstehend · Freigabe erforderlich
       </div>
     </div>
 
@@ -342,16 +372,22 @@ let editMode = false;
 const REQUIRED = ['address','city','zip_code','property_type','size_sqm','rooms'];
 const DRAFT_KEY = 'immoai_draft';
 
-// ── State ─────────────────────────────────────────────────────────────────────
 function setState(s) {
   document.getElementById('stateEmpty').style.display      = s === 'empty'      ? 'flex'  : 'none';
   document.getElementById('stateStreaming').style.display  = s === 'streaming'  ? 'block' : 'none';
   document.getElementById('stateValidating').style.display = s === 'validating' ? 'block' : 'none';
-  document.getElementById('stateResult').style.display     = s === 'result'     ? 'block' : 'none';
+  const resultEl = document.getElementById('stateResult');
+  if (s === 'result') {
+    resultEl.style.display = 'block';
+    resultEl.classList.add('visible');
+  } else {
+    resultEl.style.display = 'none';
+    resultEl.classList.remove('visible');
+  }
 }
 setState('empty');
 
-// ── Draft ─────────────────────────────────────────────────────────────────────
+/* ── Draft ── */
 const FIELDS = ['address','city','zip_code','property_type','year_built','size_sqm','rooms','energy_class','purchase_price','monthly_rent','features','notes'];
 
 function saveDraft() {
@@ -379,7 +415,7 @@ function clearDraft() {
 loadDraft();
 setInterval(saveDraft, 2000);
 
-// ── Validation ────────────────────────────────────────────────────────────────
+/* ── Validation ── */
 function validateForm() {
   let ok = true;
   REQUIRED.forEach(id => {
@@ -409,7 +445,7 @@ REQUIRED.forEach(id => {
   });
 });
 
-// ── Submit ────────────────────────────────────────────────────────────────────
+/* ── Submit ── */
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   formError.style.display = 'none';
@@ -514,7 +550,7 @@ function renderResult(job) {
     alert.className = 'alert alert-warning';
     alert.textContent = details || 'Prüfung hat Auffälligkeiten erkannt.';
   } else {
-    badge.innerHTML = '<span class="badge badge-success">✓ Keine Auffälligkeiten erkannt</span>';
+    badge.innerHTML = '<span class="badge badge-success">✓ Geprüft</span>';
     alert.style.display = 'none';
   }
 
@@ -528,7 +564,6 @@ function showErr(msg) {
   formError.style.display = 'block';
 }
 
-// ── Edit ──────────────────────────────────────────────────────────────────────
 function toggleEdit() {
   const el = document.getElementById('exposeText');
   const btn = document.getElementById('editBtn');
@@ -546,17 +581,15 @@ function toggleEdit() {
   }
 }
 
-// ── Copy ──────────────────────────────────────────────────────────────────────
 function copyExpose() {
   const text = document.getElementById('exposeText').textContent;
   navigator.clipboard.writeText(text).then(() => {
     const btn = document.getElementById('copyBtn');
-    btn.textContent = '✓ Kopiert';
-    setTimeout(() => btn.textContent = 'Kopieren', 2000);
+    btn.textContent = '✓ Kopiert!';
+    setTimeout(() => btn.textContent = 'Kopieren', 2200);
   });
 }
 
-// ── Download .txt ─────────────────────────────────────────────────────────────
 function downloadTxt() {
   const text = document.getElementById('exposeText').textContent;
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
@@ -566,7 +599,6 @@ function downloadTxt() {
   a.click();
 }
 
-// ── Reset ─────────────────────────────────────────────────────────────────────
 function resetForm() {
   form.reset();
   setState('empty');
@@ -576,7 +608,6 @@ function resetForm() {
   document.getElementById('draftBar').classList.remove('visible');
 }
 
-// ── CSV Import ────────────────────────────────────────────────────────────────
 function importCSV(input) {
   const file = input.files[0];
   if (!file) return;
@@ -590,24 +621,22 @@ function importCSV(input) {
       const row = {};
       headers.forEach((h, i) => { row[h] = vals[i] || ''; });
       const MAP = {
-        address: 'address', city: 'city', zip_code: 'zip_code',
-        property_type: 'property_type', size_sqm: 'size_sqm', rooms: 'rooms',
-        purchase_price: 'purchase_price', monthly_rent: 'monthly_rent',
-        year_built: 'year_built', energy_class: 'energy_class', features: 'features', notes: 'notes',
+        address:'address', city:'city', zip_code:'zip_code', property_type:'property_type',
+        size_sqm:'size_sqm', rooms:'rooms', purchase_price:'purchase_price',
+        monthly_rent:'monthly_rent', year_built:'year_built', energy_class:'energy_class',
+        features:'features', notes:'notes',
       };
       Object.entries(MAP).forEach(([key, id]) => {
         const el = document.getElementById(id);
         if (el && row[key]) el.value = row[key];
       });
       document.getElementById('draftBar').classList.add('visible');
-      document.getElementById('draftBar').firstChild.textContent = '📂 CSV importiert — ';
     } catch(err) { alert('Fehler beim Lesen der CSV: ' + err.message); }
   };
   reader.readAsText(file, 'utf-8');
   input.value = '';
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 const v   = id => document.getElementById(id).value.trim();
 const num = id => parseFloat(v(id)) || null;
 const int = id => parseInt(v(id)) || null;

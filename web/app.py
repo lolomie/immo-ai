@@ -139,6 +139,16 @@ def calendar_page():
     return render_template("calendar.html", auth_required=False)
 
 
+@app.route("/about")
+def about_page():
+    return render_template("about.html", auth_required=False)
+
+
+@app.route("/impressum")
+def impressum_page():
+    return render_template("impressum.html", auth_required=False)
+
+
 # ── Calendar API ──────────────────────────────────────────────────────────────
 
 @app.route("/calendar/create", methods=["POST"])

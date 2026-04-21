@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Impressum – Immo AI{% endblock %}
+
+{% block content %}
+
+<div style="max-width: 700px; margin: 0 auto; padding: 3rem 2rem 4rem;">
+
+  <div style="margin-bottom: 2.5rem;">
+    <div class="section-label">Rechtliches</div>
+    <h1 style="font-size: 1.75rem; font-weight: 800; color: var(--navy); letter-spacing: -.03em; margin-top: .5rem;">Impressum</h1>
+    <p style="color: var(--slate); margin-top: .5rem; font-size: .9rem;">
+      Angaben gemäß § 5 TMG / § 5 DDG
+    </p>
+  </div>
+
+  <!-- HINWEIS für Betreiber -->
+  <div class="alert alert-warning" style="margin-bottom: 2rem;">
+    <strong>Hinweis für den Betreiber:</strong> Bitte alle mit <code>[…]</code> markierten Felder vor der Veröffentlichung mit echten, rechtsgültigen Angaben ersetzen. Ein unvollständiges Impressum kann eine Abmahnung nach sich ziehen.
+  </div>
+
+  <div class="card" style="margin-bottom: 1.5rem;">
+    <h2 style="font-size: 1rem; font-weight: 700; color: var(--navy); margin-bottom: 1rem;">Anbieter &amp; Verantwortlicher</h2>
+    <p style="line-height: 1.9; color: var(--navy-800);">
+      <strong>[Vollständiger Name oder Unternehmensname]</strong><br>
+      [Straße und Hausnummer]<br>
+      [PLZ] [Stadt]<br>
+      Deutschland
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom: 1.5rem;">
+    <h2 style="font-size: 1rem; font-weight: 700; color: var(--navy); margin-bottom: 1rem;">Kontakt</h2>
+    <p style="line-height: 1.9; color: var(--navy-800);">
+      E-Mail: <a href="mailto:[email@beispiel.de]">[email@beispiel.de]</a><br>
+      Telefon: <span style="color: var(--slate);">[optional: +49 …]</span>
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom: 1.5rem;">
+    <h2 style="font-size: 1rem; font-weight: 700; color: var(--navy); margin-bottom: 1rem;">Vertretungsberechtigte Person</h2>
+    <p style="color: var(--navy-800);">[Name der vertretungsberechtigten Person, falls abweichend vom Betreiber]</p>
+  </div>
+
+  <div class="card" style="margin-bottom: 1.5rem;">
+    <h2 style="font-size: 1rem; font-weight: 700; color: var(--navy); margin-bottom: 1rem;">Umsatzsteuer-ID</h2>
+    <p style="color: var(--slate); font-size: .9rem;">
+      Falls vorhanden: Umsatzsteuer-Identifikationsnummer gemäß § 27a UStG:<br>
+      <span style="color: var(--navy-800);">[DE…] oder „nicht vorhanden / nicht umsatzsteuerpflichtig"</span>
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom: 1.5rem;">
+    <h2 style="font-size: 1rem; font-weight: 700; color: var(--navy); margin-bottom: 1rem;">Haftungsausschluss</h2>
+    <p style="font-size: .9rem; color: var(--slate); line-height: 1.8; margin-bottom: .875rem;">
+      <strong style="color: var(--navy-800);">Inhalt:</strong> Die Inhalte dieser Website wurden mit größtmöglicher Sorgfalt erstellt. Für die Richtigkeit, Vollständigkeit und Aktualität der Inhalte wird keine Gewähr übernommen.
+    </p>
+    <p style="font-size: .9rem; color: var(--slate); line-height: 1.8; margin-bottom: .875rem;">
+      <strong style="color: var(--navy-800);">KI-generierte Inhalte:</strong> Die mit diesem Tool erstellten Exposé-Texte werden durch ein KI-Sprachmodell generiert und müssen vor jeder Verwendung durch einen Menschen geprüft und freigegeben werden. Der Betreiber übernimmt keine Haftung für automatisch generierte Inhalte.
+    </p>
+    <p style="font-size: .9rem; color: var(--slate); line-height: 1.8;">
+      <strong style="color: var(--navy-800);">Externe Links:</strong> Diese Website enthält Links zu externen Webseiten Dritter. Auf deren Inhalte haben wir keinen Einfluss. Für die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter verantwortlich.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size: 1rem; font-weight: 700; color: var(--navy); margin-bottom: 1rem;">Urheberrecht</h2>
+    <p style="font-size: .9rem; color: var(--slate); line-height: 1.8;">
+      Die durch den Betreiber erstellten Inhalte und Werke auf dieser Website unterliegen dem deutschen Urheberrecht. Die Vervielfältigung, Bearbeitung, Verbreitung und jede Art der Verwertung außerhalb der Grenzen des Urheberrechtes bedürfen der schriftlichen Zustimmung des jeweiligen Autors bzw. Erstellers.
+    </p>
+  </div>
+
+</div>
+
+{% endblock %}

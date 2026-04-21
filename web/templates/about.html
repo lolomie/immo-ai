@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Über uns – Immo AI{% endblock %}
+
+{% block content %}
+
+<div class="hero" style="padding: 5rem 2rem 4rem;">
+  <div class="hero-badge">Über das Projekt</div>
+  <h1>Warum <em>Immo AI</em>?</h1>
+  <p>Makler verbringen täglich Stunden mit Aufgaben, die kein Kunde je sieht — Exposés schreiben, Termine koordinieren, Anfragen sortieren. Das ändern wir.</p>
+</div>
+
+<section style="padding: 3.5rem 2rem;">
+  <div class="section-inner" style="max-width: 780px;">
+
+    <div class="section-header">
+      <div class="section-label">Das Problem</div>
+      <h2 class="section-title">Maklerbüros verlieren täglich Zeit an operative Kleinstarbeit</h2>
+    </div>
+
+    <div class="problem-cards" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 3rem;">
+      <div class="problem-card">
+        <div class="problem-card-icon">✍️</div>
+        <h3>Exposés per Hand</h3>
+        <p>Jedes Objekt neu beschreiben, formatieren, prüfen. Für erfahrene Makler oft 30–60 Minuten pro Exposé.</p>
+      </div>
+      <div class="problem-card">
+        <div class="problem-card-icon">📅</div>
+        <h3>Terminchaos</h3>
+        <p>Besichtigungen über WhatsApp, E-Mail und Notizzettel. Doppelbuchungen und verlorene Anfragen sind die Folge.</p>
+      </div>
+      <div class="problem-card">
+        <div class="problem-card-icon">🔁</div>
+        <h3>Wiederholung ohne Wert</h3>
+        <p>Dieselben Texte, dieselben Formulierungen, immer wieder — statt sich auf Akquise und Beratung zu konzentrieren.</p>
+      </div>
+    </div>
+
+    <div class="section-header">
+      <div class="section-label">Die Lösung</div>
+      <h2 class="section-title">KI als Werkzeug, nicht als Ersatz</h2>
+    </div>
+
+    <p style="font-size: 1.0625rem; color: var(--slate); line-height: 1.8; margin-bottom: 1.5rem;">
+      Immo AI übernimmt die repetitiven Teile: Exposé-Texte generieren, Termine erfassen, Objekte strukturieren. Der Makler behält die Kontrolle — jedes Ergebnis wird menschlich geprüft, bevor es den Kunden erreicht.
+    </p>
+    <p style="font-size: 1.0625rem; color: var(--slate); line-height: 1.8; margin-bottom: 3rem;">
+      Das System ist kein Autopilot. Es ist ein Assistent, der Routinearbeit abnimmt, damit Makler ihre Zeit für das einsetzen können, was wirklich zählt: Kundengespräche, Akquise, Abschlüsse.
+    </p>
+
+    <div class="section-header">
+      <div class="section-label">Unser Ansatz</div>
+      <h2 class="section-title">Einfach. Direkt. Nützlich.</h2>
+    </div>
+
+    <div class="steps" style="margin-bottom: 3rem;">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h3>Objektdaten eingeben</h3>
+          <p>Lage, Größe, Preis, Ausstattung — einmal erfassen, fertig.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h3>Exposé generieren lassen</h3>
+          <p>Das System erstellt in Sekunden einen strukturierten, verkaufsstarken Text.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h3>Prüfen und freigeben</h3>
+          <p>Kein Exposé verlässt das System ohne menschliche Freigabe. Halluzinationen werden automatisch markiert.</p>
+        </div>
+      </div>
+    </div>
+
+    <div style="background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 12px; padding: 2rem 2.5rem;">
+      <div class="section-label" style="margin-bottom: .75rem;">Hintergrund</div>
+      <p style="font-size: 1rem; color: var(--navy-800); line-height: 1.8; margin-bottom: 1rem;">
+        Immo AI entstand aus einer konkreten Beobachtung: Immobilienprofis verbringen überproportional viel Zeit mit Dokumentenarbeit — und das, obwohl moderne Sprachmodelle genau diese Aufgaben sehr zuverlässig übernehmen können.
+      </p>
+      <p style="font-size: 1rem; color: var(--slate); line-height: 1.8;">
+        Das Projekt wird aktiv weiterentwickelt. Ziel ist ein schlankes, praxistaugliches Tool für kleine und mittelgroße Maklerbüros — ohne Lizenzkosten für Features, die niemand braucht.
+      </p>
+    </div>
+
+  </div>
+</section>
+
+{% endblock %}
