@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Terminplanung – Immo AI{% endblock %}
+
+{% block content %}
+
+<!-- Hero -->
+<div class="hero" style="padding: 5rem 2rem 4rem;">
+  <div class="hero-badge">Kalender &amp; Terminverwaltung</div>
+  <h1>Verwalte deine Besichtigungen<br><em>ohne Chaos</em></h1>
+  <p>Plane Termine in Sekunden und verliere nie wieder den Überblick über Kundengespräche und Besichtigungen.</p>
+  <div class="hero-actions">
+    <a href="#termin-erstellen" class="btn btn-primary btn-lg">Termin erstellen</a>
+    <a href="#alle-termine" class="btn btn-outline-white btn-lg">Alle Termine ansehen</a>
+  </div>
+</div>
+
+<!-- Problem section -->
+<section style="background: var(--bg-subtle); padding: 3.5rem 2rem;">
+  <div class="section-inner">
+    <div class="problem-cards" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
+      <div class="problem-card">
+        <div class="problem-card-icon">📅</div>
+        <h3>Doppelbuchungen</h3>
+        <p>Zwei Kunden, gleiche Zeit, eine Immobilie. Passiert schneller als gedacht.</p>
+      </div>
+      <div class="problem-card">
+        <div class="problem-card-icon">📩</div>
+        <h3>Verlorene Anfragen</h3>
+        <p>Kundennachrichten verschwinden in E-Mail, WhatsApp und Notizblöcken.</p>
+      </div>
+      <div class="problem-card">
+        <div class="problem-card-icon">🗂️</div>
+        <h3>Zu viele Tools</h3>
+        <p>Excel, Kalender, CRM – nichts ist synchronisiert, alles kostet Zeit.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Conversion bar -->
+<div style="background: var(--blue); color: #fff; text-align: center; padding: 1rem 2rem; font-weight: 700; font-size: 1rem;">
+  Spare täglich bis zu 1–2 Stunden durch strukturierte Terminplanung.
+</div>
+
+<!-- Main app section -->
+<section id="termin-erstellen" style="padding: 3rem 2rem;">
+  <div class="section-inner">
+
+    <div class="alert alert-info" style="margin-bottom: 1.5rem; max-width: 700px;">
+      Dies ist ein internes Planungstool. Termine müssen extern bestätigt werden.
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start;" class="cal-layout">
+
+      <!-- Left: Form -->
+      <div class="card">
+        <h2 style="font-size: 1.125rem; font-weight: 800; color: var(--navy); margin-bottom: 1.25rem;">Neuen Termin erstellen</h2>
+
+        <div id="formError" class="alert alert-error" style="display:none; margin-bottom:1rem;"></div>
+        <div id="formSuccess" class="alert alert-success" style="display:none; margin-bottom:1rem;">Termin erfolgreich gespeichert.</div>
+
+        <form id="appointmentForm" novalidate>
+          <div class="form-grid" style="gap: 1rem;">
+
+            <div class="field">
+              <label for="property_id">Objekt-ID <span class="opt">(optional)</span></label>
+              <input type="text" id="property_id" name="property_id" placeholder="z. B. OBJ-001">
+            </div>
+
+            <div class="field">
+              <label for="type">Terminart</label>
+              <select id="type" name="type" required>
+                <option value="Besichtigung">Besichtigung</option>
+                <option value="Call">Call</option>
+              </select>
+            </div>
+
+            <div class="field form-full">
+              <label for="client_name">Kundenname <span style="color:var(--red);">*</span></label>
+              <input type="text" id="client_name" name="client_name" placeholder="Max Mustermann" required>
+            </div>
+
+            <div class="field form-full">
+              <label for="client_contact">Kontakt <span class="opt">(Tel. / E-Mail)</span></label>
+              <input type="text" id="client_contact" name="client_contact" placeholder="+49 170 1234567">
+            </div>
+
+            <div class="field">
+              <label for="date">Datum <span style="color:var(--red);">*</span></label>
+              <input type="date" id="date" name="date" required>
+            </div>
+
+            <div class="field">
+              <label for="time">Uhrzeit <span style="color:var(--red);">*</span></label>
+              <input type="time" id="time" name="time" required>
+            </div>
+
+            <div class="field form-full">
+              <label for="notes">Notizen <span class="opt">(optional)</span></label>
+              <textarea id="notes" name="notes" placeholder="Schlüssel beim Hausmeister abholen..."></textarea>
+            </div>
+
+          </div>
+
+          <button type="submit" class="btn btn-primary" id="submitBtn" style="margin-top: 1.25rem; width: 100%;">
+            Termin speichern
+          </button>
+        </form>
+      </div>
+
+      <!-- Right: Appointment list -->
+      <div id="alle-termine">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+          <h2 style="font-size: 1.125rem; font-weight: 800; color: var(--navy);">Alle Termine</h2>
+          <span id="apptCount" class="badge badge-pending"></span>
+        </div>
+        <div id="appointmentList">
+          <div class="empty-state">
+            <div class="empty-state-icon">📋</div>
+            <h3>Noch keine Termine</h3>
+            <p>Erstelle deinen ersten Termin links.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<style>
+.appt-card {
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin-bottom: .75rem;
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.appt-card:hover { border-color: #94a3b8; }
+.appt-meta { font-size: .8rem; color: var(--slate); margin-top: .2rem; }
+.appt-title { font-weight: 700; color: var(--navy); font-size: .9375rem; }
+.appt-badge {
+  display: inline-block;
+  padding: .15rem .6rem;
+  border-radius: 999px;
+  font-size: .75rem;
+  font-weight: 600;
+  background: #eff6ff;
+  color: var(--blue);
+  border: 1px solid #bfdbfe;
+  margin-left: .5rem;
+}
+.appt-badge.call { background: var(--amber-bg); color: var(--amber); border-color: var(--amber-border); }
+@media (max-width: 768px) { .cal-layout { grid-template-columns: 1fr !important; } }
+</style>
+
+<script src="{{ url_for('static', filename='calendar.js') }}"></script>
+{% endblock %}

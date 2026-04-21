@@ -14,6 +14,7 @@ _here = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(_here, ".."))  # project root → src.*
 sys.path.insert(0, _here)                       # web/ → auth
 
+from src.calendar_service import create_appointment, delete_appointment, get_appointments
 from src.generator import generate_expose, stream_expose
 from src.models import JobResult, PropertyInput
 from src.validator import validate_expose
@@ -126,6 +127,50 @@ def generate_page():
 @login_required
 def review_page():
     return render_template("review.html", auth_required=False)
+
+
+@app.route("/calendar")
+@login_required
+def calendar_page():
+    return render_template("calendar.html", auth_required=False)
+
+
+# ── Calendar API ──────────────────────────────────────────────────────────────
+
+@app.route("/calendar/create", methods=["POST"])
+@api_login_required
+def calendar_create():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Kein JSON erhalten"}), 400
+    try:
+        appt = create_appointment(data)
+        return jsonify({"ok": True, "appointment": appt.to_dict()})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        app.logger.error("Calendar create failed: %s", e)
+        return jsonify({"error": "Interner Fehler"}), 500
+
+
+@app.route("/calendar/all", methods=["GET"])
+@api_login_required
+def calendar_all():
+    appointments = [a.to_dict() for a in get_appointments()]
+    return jsonify({"appointments": appointments, "total": len(appointments)})
+
+
+@app.route("/calendar/delete", methods=["POST"])
+@api_login_required
+def calendar_delete():
+    data = request.get_json()
+    appt_id = (data or {}).get("appointment_id", "").strip()
+    if not appt_id:
+        return jsonify({"error": "appointment_id fehlt"}), 400
+    removed = delete_appointment(appt_id)
+    if not removed:
+        return jsonify({"error": "Termin nicht gefunden"}), 404
+    return jsonify({"ok": True})
 
 
 # ── API: Generate ─────────────────────────────────────────────────────────────
