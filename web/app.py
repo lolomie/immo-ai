@@ -384,6 +384,50 @@ def api_review(job_id):
     return jsonify({"ok": True, "status": job["status"]})
 
 
+# ── Automation webhook ────────────────────────────────────────────────────────
+
+@app.route("/api/automation/trigger", methods=["POST"])
+@api_login_required
+def api_automation_trigger():
+    """
+    Webhook endpoint for Google Apps Script to trigger the automation pipeline.
+    Runs one poll cycle synchronously (suitable for small batches).
+    For production, use run_automation.py daemon instead.
+    """
+    import threading
+
+    secret = request.headers.get("X-Webhook-Secret", "")
+    from src.config import AUTOMATION_WEBHOOK_SECRET
+    if AUTOMATION_WEBHOOK_SECRET and secret != AUTOMATION_WEBHOOK_SECRET:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    def _run():
+        try:
+            from src.automation import poll_and_process
+            n = poll_and_process()
+            app.logger.info("Webhook-triggered cycle complete: %d rows", n)
+        except Exception as e:
+            app.logger.error("Webhook automation error: %s", e, exc_info=True)
+
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
+    return jsonify({"ok": True, "message": "Automation pipeline gestartet."})
+
+
+@app.route("/api/pipeline/logs")
+@api_login_required
+def api_pipeline_logs():
+    """Return recent pipeline log entries for monitoring dashboard."""
+    try:
+        from src.pipeline_logger import get_recent_logs
+        n_days = min(30, max(1, int(request.args.get("days", 7))))
+        entries = get_recent_logs(n_days=n_days)
+        return jsonify({"entries": entries, "total": len(entries)})
+    except Exception as e:
+        app.logger.error("Pipeline logs error: %s", e)
+        return jsonify({"error": "Logs nicht verfügbar"}), 500
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.logger.info("Starting Immo AI on port %d, LOGS_DIR=%s", port, LOGS_DIR)
