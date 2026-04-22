@@ -1,3 +1,6 @@
+# Database
+psycopg2-binary>=2.9.0  # PostgreSQL (optional — only needed if DATABASE_URL is set)
+
 anthropic>=0.40.0
 pydantic>=2.0.0
 python-dotenv>=1.0.0

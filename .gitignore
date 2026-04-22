@@ -7,3 +7,6 @@ logs/
 config/
 *.json
 !package.json
+# SQLite database (persistent locally, never commit)
+data/immo.db
+data/*.db

@@ -1,18 +1,8 @@
-import json
-import os
 import re
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import date, datetime
 from typing import List, Optional
-
-# On Vercel (read-only filesystem) write to /tmp; otherwise use local logs/
-_is_vercel = os.environ.get("VERCEL") == "1"
-CALENDAR_FILE = (
-    "/tmp/calendar.json"
-    if _is_vercel
-    else os.path.join(os.path.dirname(__file__), "..", "logs", "calendar.json")
-)
 
 APPOINTMENT_TYPES = ("Besichtigung", "Call")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -29,6 +19,7 @@ class Appointment:
     time: str        # HH:MM
     type: str        # "Besichtigung" | "Call"
     notes: str = ""
+    username: str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -44,26 +35,8 @@ class Appointment:
             time=d["time"],
             type=d["type"],
             notes=d.get("notes", ""),
+            username=d.get("username", ""),
         )
-
-
-# ── Storage (swap this layer for Google Calendar API later) ───────────────────
-
-def _load_all() -> List[dict]:
-    if not os.path.exists(CALENDAR_FILE):
-        return []
-    with open(CALENDAR_FILE, "r", encoding="utf-8") as f:
-        try:
-            data = json.load(f)
-            return data if isinstance(data, list) else []
-        except json.JSONDecodeError:
-            return []
-
-
-def _save_all(appointments: List[dict]) -> None:
-    os.makedirs(os.path.dirname(CALENDAR_FILE), exist_ok=True)
-    with open(CALENDAR_FILE, "w", encoding="utf-8") as f:
-        json.dump(appointments, f, ensure_ascii=False, indent=2)
 
 
 # ── Validation ────────────────────────────────────────────────────────────────
@@ -91,21 +64,12 @@ def _validate(data: dict) -> None:
         raise ValueError("; ".join(errors))
 
 
-# ── Conflict check (placeholder for future logic) ─────────────────────────────
+# ── CRUD ──────────────────────────────────────────────────────────────────────
 
-def check_conflicts(date: str, time: str, exclude_id: Optional[str] = None) -> List[Appointment]:
-    """Returns appointments at the same date+time. No blocking in MVP — just informational."""
-    return [
-        a for a in get_appointments()
-        if a.date == date and a.time == time and a.appointment_id != exclude_id
-    ]
-
-
-# ── Core CRUD ─────────────────────────────────────────────────────────────────
-
-def create_appointment(data: dict) -> Appointment:
+def create_appointment(data: dict, username: str = "") -> Appointment:
     _validate(data)
-    appointment = Appointment(
+    from src.db import execute
+    appt = Appointment(
         appointment_id=str(uuid.uuid4())[:8],
         property_id=data.get("property_id", ""),
         client_name=data["client_name"].strip(),
@@ -114,45 +78,88 @@ def create_appointment(data: dict) -> Appointment:
         time=data["time"],
         type=data["type"],
         notes=data.get("notes", "").strip(),
+        username=username,
     )
-    all_appointments = _load_all()
-    all_appointments.append(appointment.to_dict())
-    _save_all(all_appointments)
-    return appointment
+    execute(
+        """INSERT INTO calendar_events
+               (appointment_id, property_id, client_name, client_contact,
+                date, time, type, notes, username)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (appt.appointment_id, appt.property_id, appt.client_name,
+         appt.client_contact, appt.date, appt.time, appt.type,
+         appt.notes, appt.username),
+    )
+    return appt
 
 
-def get_appointments() -> List[Appointment]:
-    return [Appointment.from_dict(d) for d in _load_all()]
+def get_appointments(username: str = "") -> List[Appointment]:
+    from src.db import fetchall
+    if username:
+        rows = fetchall(
+            "SELECT * FROM calendar_events WHERE username = ? ORDER BY date, time",
+            (username,),
+        )
+    else:
+        rows = fetchall("SELECT * FROM calendar_events ORDER BY date, time")
+    return [Appointment.from_dict(r) for r in rows]
 
 
-def get_appointments_by_date(target_date: str) -> List[Appointment]:
+def get_appointments_by_date(target_date: str, username: str = "") -> List[Appointment]:
     if not _DATE_RE.match(target_date):
         raise ValueError(f"date muss im Format YYYY-MM-DD sein, erhalten: {target_date}")
-    return [a for a in get_appointments() if a.date == target_date]
+    from src.db import fetchall
+    if username:
+        rows = fetchall(
+            "SELECT * FROM calendar_events WHERE date = ? AND username = ? ORDER BY time",
+            (target_date, username),
+        )
+    else:
+        rows = fetchall(
+            "SELECT * FROM calendar_events WHERE date = ? ORDER BY time",
+            (target_date,),
+        )
+    return [Appointment.from_dict(r) for r in rows]
 
 
-def get_upcoming_appointments(from_date: Optional[str] = None) -> List[Appointment]:
-    """Returns appointments from today onwards, sorted by date+time."""
+def get_upcoming_appointments(from_date: Optional[str] = None, username: str = "") -> List[Appointment]:
     cutoff = from_date or date.today().isoformat()
-    upcoming = [a for a in get_appointments() if a.date >= cutoff]
-    return sorted(upcoming, key=lambda a: (a.date, a.time))
+    from src.db import fetchall
+    if username:
+        rows = fetchall(
+            "SELECT * FROM calendar_events WHERE date >= ? AND username = ? ORDER BY date, time",
+            (cutoff, username),
+        )
+    else:
+        rows = fetchall(
+            "SELECT * FROM calendar_events WHERE date >= ? ORDER BY date, time",
+            (cutoff,),
+        )
+    return [Appointment.from_dict(r) for r in rows]
 
 
-def get_todays_appointments() -> List[Appointment]:
-    return get_appointments_by_date(date.today().isoformat())
+def get_todays_appointments(username: str = "") -> List[Appointment]:
+    return get_appointments_by_date(date.today().isoformat(), username)
 
 
 def delete_appointment(appointment_id: str) -> bool:
-    all_appointments = _load_all()
-    filtered = [a for a in all_appointments if a["appointment_id"] != appointment_id]
-    if len(filtered) == len(all_appointments):
+    from src.db import fetchone, execute
+    if not fetchone("SELECT 1 FROM calendar_events WHERE appointment_id = ?", (appointment_id,)):
         return False
-    _save_all(filtered)
+    execute("DELETE FROM calendar_events WHERE appointment_id = ?", (appointment_id,))
     return True
 
 
 def get_appointment_by_id(appointment_id: str) -> Optional[Appointment]:
-    for d in _load_all():
-        if d["appointment_id"] == appointment_id:
-            return Appointment.from_dict(d)
-    return None
+    from src.db import fetchone
+    row = fetchone("SELECT * FROM calendar_events WHERE appointment_id = ?", (appointment_id,))
+    return Appointment.from_dict(row) if row else None
+
+
+def check_conflicts(target_date: str, time: str, exclude_id: Optional[str] = None) -> List[Appointment]:
+    from src.db import fetchall
+    rows = fetchall(
+        "SELECT * FROM calendar_events WHERE date = ? AND time = ?",
+        (target_date, time),
+    )
+    appts = [Appointment.from_dict(r) for r in rows]
+    return [a for a in appts if a.appointment_id != exclude_id]
