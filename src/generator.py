@@ -1,12 +1,21 @@
 import json
 import os
-from typing import Generator
+from typing import Generator, Optional
 
 from .config import LLM_PROVIDER, PROMPTS_DIR
 from .models import PropertyInput
 
+# Tone instructions appended to the user message for Business plan users
+_TONE_INSTRUCTIONS = {
+    "standard":  "",
+    "exklusiv":  "\n\nTonalität: Exklusiv und premium. Gehobene Sprache, die Qualität und Einzigartigkeit betont. Für anspruchsvolle Käufer.",
+    "sachlich":  "\n\nTonalität: Sachlich und nüchtern. Nur Fakten, keine Superlative, keine Werbewörter. Für professionelle Investoren.",
+    "emotional": "\n\nTonalität: Warm und einladend. Emotionale Sprache, die Zuhause-Gefühl und Lebensqualität betont. Für Familien.",
+    "modern":    "\n\nTonalität: Modern und dynamisch. Klare Sprache, kurze Sätze, zeitgemäße Ausdrucksweise. Für junge Käufer.",
+}
 
-def _load_prompt(property_data: PropertyInput) -> tuple[str, str]:
+
+def _load_prompt(property_data: PropertyInput, tone: Optional[str] = None) -> tuple[str, str]:
     template_path = os.path.join(PROMPTS_DIR, "generation.txt")
     with open(template_path, "r", encoding="utf-8") as f:
         template = f.read()
@@ -17,18 +26,25 @@ def _load_prompt(property_data: PropertyInput) -> tuple[str, str]:
     parts = template.split("{property_json}", 1)
     system_text = parts[0].strip()
     user_text = (property_json + parts[1]).strip() if len(parts) > 1 else property_json
+
+    # Append tone instruction (Business plan feature)
+    tone_key = (tone or "standard").lower().strip()
+    tone_instruction = _TONE_INSTRUCTIONS.get(tone_key, "")
+    if tone_instruction:
+        user_text = user_text + tone_instruction
+
     return system_text, user_text
 
 
-def generate_expose(property_data: PropertyInput) -> str:
-    system_text, user_text = _load_prompt(property_data)
+def generate_expose(property_data: PropertyInput, tone: Optional[str] = None) -> str:
+    system_text, user_text = _load_prompt(property_data, tone)
     if LLM_PROVIDER == "groq":
         return _generate_groq(system_text, user_text)
     return _generate_anthropic(system_text, user_text)
 
 
-def stream_expose(property_data: PropertyInput) -> Generator[str, None, None]:
-    system_text, user_text = _load_prompt(property_data)
+def stream_expose(property_data: PropertyInput, tone: Optional[str] = None) -> Generator[str, None, None]:
+    system_text, user_text = _load_prompt(property_data, tone)
     if LLM_PROVIDER == "groq":
         yield from _stream_groq(system_text, user_text)
     else:

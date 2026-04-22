@@ -193,6 +193,24 @@
     <div class="gen-intro">
       <h1>Exposé in unter 60 Sekunden</h1>
       <p>Spare Stunden an Schreibarbeit und reagiere schneller auf Anfragen.</p>
+      <div style="display:flex;align-items:center;gap:.75rem;margin-top:.875rem;flex-wrap:wrap;">
+        <span style="font-size:.75rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:.08em;">
+          {{ plan_info.name }}-Plan
+        </span>
+        <div style="flex:1;height:6px;background:var(--border);border-radius:999px;min-width:80px;max-width:160px;overflow:hidden;">
+          <div style="height:100%;border-radius:999px;background:{% if monthly_used >= monthly_limit %}var(--red){% elif monthly_used >= monthly_limit * 0.8 %}var(--amber){% else %}var(--blue){% endif %};
+               width:{{ [((monthly_used / monthly_limit * 100)|int), 100]|min }}%;transition:width .4s;"></div>
+        </div>
+        <span style="font-size:.8125rem;color:{% if monthly_used >= monthly_limit %}var(--red){% elif monthly_used >= monthly_limit * 0.8 %}var(--amber){% else %}var(--slate){% endif %};font-weight:600;">
+          {{ monthly_used }} / {{ monthly_limit }}
+        </span>
+      </div>
+      {% if limit_reached %}
+      <div class="alert alert-error" style="margin-top:.875rem;font-size:.875rem;">
+        ⚠️ Monatliches Limit erreicht.
+        <a href="/signup?plan={% if user_plan == 'starter' %}pro{% else %}business{% endif %}" style="color:var(--red);font-weight:700;">Jetzt upgraden →</a>
+      </div>
+      {% endif %}
     </div>
 
     <div id="draftBar" class="draft-bar">
@@ -275,6 +293,33 @@
           <input type="number" id="monthly_rent" placeholder="1 200" min="0">
         </div>
       </div>
+
+      {% if can_custom_tone %}
+      <div class="section-divider">Tonalität <span style="color:var(--blue);font-size:.65rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-left:.4rem;">Business</span></div>
+      <div class="form-row single">
+        <div class="field">
+          <label>Exposé-Stil</label>
+          <select id="tone">
+            <option value="standard">Standard — ausgewogen</option>
+            <option value="exklusiv">Exklusiv — gehobene Sprache</option>
+            <option value="sachlich">Sachlich — nur Fakten</option>
+            <option value="emotional">Emotional — Zuhause-Gefühl</option>
+            <option value="modern">Modern — dynamisch &amp; jung</option>
+          </select>
+        </div>
+      </div>
+      {% else %}
+      <div class="section-divider">Tonalität</div>
+      <div class="form-row single">
+        <div class="field" title="Nur im Business-Plan verfügbar">
+          <label>Exposé-Stil <span style="color:var(--slate-light);font-size:.75rem;">🔒 Business</span></label>
+          <select id="tone" disabled style="opacity:.5;cursor:not-allowed;">
+            <option>Standard (Upgrade auf Business)</option>
+          </select>
+          <span class="field-hint"><a href="/signup?plan=business" style="color:var(--blue);">Business-Plan</a> für anpassbare Tonalität.</span>
+        </div>
+      </div>
+      {% endif %}
 
       <div class="section-divider">Ausstattung &amp; Notizen</div>
       <div class="form-row single">
@@ -459,6 +504,7 @@ form.addEventListener('submit', async (e) => {
   submitBtn.disabled = true;
   submitBtn.innerHTML = '<span class="spinner"></span> Wird generiert…';
 
+  const toneEl = document.getElementById('tone');
   const data = {
     address:        v('address'),
     city:           v('city'),
@@ -472,6 +518,7 @@ form.addEventListener('submit', async (e) => {
     energy_class:   v('energy_class') || null,
     features:       v('features'),
     notes:          v('notes') || null,
+    tone:           (toneEl && !toneEl.disabled) ? toneEl.value : 'standard',
   };
 
   document.getElementById('streamText').textContent = '';

@@ -18,10 +18,27 @@ from src.calendar_service import create_appointment, delete_appointment, get_app
 from src.generator import generate_expose, stream_expose
 from src.models import JobResult, PropertyInput
 from src.validator import validate_expose
+from src.plans import PLANS, has_feature, get_monthly_limit, get_plan
+from src.usage_tracker import check_limit, increment, get_usage
 try:
-    from .auth import api_login_required, check_credentials, login_required, admin_required, add_user, delete_user, list_users
+    from .auth import (api_login_required, check_credentials, login_required,
+                       admin_required, add_user, delete_user, list_users,
+                       get_user_plan, get_user_phone, set_user_plan,
+                       set_user_phone, count_non_admin_users)
 except ImportError:
-    from auth import api_login_required, check_credentials, login_required, admin_required, add_user, delete_user, list_users
+    from auth import (api_login_required, check_credentials, login_required,
+                      admin_required, add_user, delete_user, list_users,
+                      get_user_plan, get_user_phone, set_user_plan,
+                      set_user_phone, count_non_admin_users)
+
+
+def _plan() -> str:
+    """Return the current user's plan key from session."""
+    return session.get("plan", "starter")
+
+
+def _username() -> str:
+    return session.get("username", "anonymous")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -98,7 +115,8 @@ def login_page():
         if check_credentials(username, password):
             session["logged_in"] = True
             session["username"] = username
-            app.logger.info("Login: %s", username)
+            session["plan"] = get_user_plan(username)
+            app.logger.info("Login: %s (plan=%s)", username, session["plan"])
             return redirect(request.args.get("next") or url_for("generate_page"))
         app.logger.warning("Failed login attempt for user: %s", username)
         return render_template("login.html", error="Falsche Zugangsdaten", username=username)
@@ -124,19 +142,38 @@ def index():
 @app.route("/generate")
 @login_required
 def generate_page():
-    return render_template("generate.html", auth_required=False)
+    plan = _plan()
+    used = get_usage(_username())
+    limit = get_monthly_limit(plan)
+    return render_template(
+        "generate.html",
+        auth_required=False,
+        user_plan=plan,
+        plan_info=get_plan(plan),
+        can_custom_tone=has_feature(plan, "custom_tone"),
+        monthly_limit=limit,
+        monthly_used=used,
+        limit_reached=(used >= limit),
+    )
 
 
 @app.route("/review")
 @login_required
 def review_page():
-    return render_template("review.html", auth_required=False)
+    return render_template("review.html", auth_required=False, user_plan=_plan())
 
 
 @app.route("/calendar")
 @login_required
 def calendar_page():
-    return render_template("calendar.html", auth_required=False)
+    plan = _plan()
+    if not has_feature(plan, "calendar"):
+        return render_template("upgrade.html", auth_required=False,
+                               feature="Kalendersystem",
+                               feature_key="calendar",
+                               current_plan=plan,
+                               required_plan="pro"), 403
+    return render_template("calendar.html", auth_required=False, user_plan=plan)
 
 
 @app.route("/about")
@@ -201,8 +238,12 @@ def api_signup():
 @app.route("/admin/users")
 @admin_required
 def admin_users_page():
+    plan = _plan()
     users = list_users()
-    return render_template("admin_users.html", users=users, auth_required=False)
+    can_add = has_feature(plan, "multi_user")
+    return render_template("admin_users.html", users=users, auth_required=False,
+                           user_plan=plan, can_add_users=can_add,
+                           all_plans=PLANS)
 
 
 # ── Admin User API ────────────────────────────────────────────────────────────
@@ -216,12 +257,16 @@ def api_admin_list_users():
 @app.route("/api/admin/users", methods=["POST"])
 @admin_required
 def api_admin_add_user():
+    if not has_feature(_plan(), "multi_user"):
+        return jsonify({"error": "Multi-User erfordert den Business-Plan. Bitte upgraden."}), 403
     data = request.get_json() or {}
     username = data.get("username", "").strip()
     password = data.get("password", "").strip()
+    plan_key = data.get("plan", "starter").strip()
+    phone    = data.get("phone", "").strip()
     try:
-        add_user(username, password)
-        app.logger.info("User created: %s by %s", username, session.get("username"))
+        add_user(username, password, plan=plan_key, phone=phone)
+        app.logger.info("User created: %s (plan=%s) by %s", username, plan_key, _username())
         return jsonify({"ok": True, "username": username})
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
@@ -232,10 +277,52 @@ def api_admin_add_user():
 def api_admin_delete_user(username):
     try:
         delete_user(username)
-        app.logger.info("User deleted: %s by %s", username, session.get("username"))
+        app.logger.info("User deleted: %s by %s", username, _username())
         return jsonify({"ok": True})
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
+
+
+@app.route("/api/admin/users/<username>/plan", methods=["PATCH"])
+@admin_required
+def api_admin_set_plan(username):
+    data = request.get_json() or {}
+    plan_key = data.get("plan", "").strip().lower()
+    if plan_key not in PLANS:
+        return jsonify({"error": f"Unbekannter Plan: {plan_key}"}), 400
+    try:
+        set_user_plan(username, plan_key)
+        return jsonify({"ok": True})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route("/api/admin/users/<username>/phone", methods=["PATCH"])
+@admin_required
+def api_admin_set_phone(username):
+    data = request.get_json() or {}
+    phone = data.get("phone", "").strip()
+    try:
+        set_user_phone(username, phone)
+        return jsonify({"ok": True})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route("/api/usage")
+@api_login_required
+def api_usage():
+    plan = _plan()
+    used = get_usage(_username())
+    limit = get_monthly_limit(plan)
+    return jsonify({
+        "plan": plan,
+        "plan_name": get_plan(plan)["name"],
+        "used": used,
+        "limit": limit,
+        "remaining": max(0, limit - used),
+        "percent": round(used / limit * 100) if limit else 0,
+    })
 
 
 # ── Calendar API ──────────────────────────────────────────────────────────────
@@ -253,6 +340,8 @@ def calendar_create():
         def _post_create():
             try:
                 from src.email_client import send_appointment_confirmation
+                plan  = _plan()
+                phone = get_user_phone(_username())
                 lead_email = data.get("lead_email", "").strip()
                 if lead_email:
                     send_appointment_confirmation(
@@ -264,6 +353,15 @@ def calendar_create():
                         appointment_id=appt.appointment_id,
                     )
                     app.logger.info("Confirmation email sent for %s", appt.appointment_id)
+                # WhatsApp for Pro/Business
+                if has_feature(plan, "whatsapp") and phone:
+                    from src.whatsapp_client import notify_appointment
+                    notify_appointment(
+                        phone,
+                        data.get("lead_name", "Interessent"),
+                        data.get("property_address", data.get("title", "")),
+                        data.get("start_time", ""),
+                    )
             except Exception as e:
                 app.logger.error("Post-create calendar task failed: %s", e)
 
@@ -304,15 +402,21 @@ def calendar_delete():
 @limiter.limit("10 per minute")
 @api_login_required
 def api_generate():
+    # ── Plan limit check ──────────────────────────────────────────────────────
+    allowed, reason = check_limit(_username(), _plan())
+    if not allowed:
+        return jsonify({"error": reason}), 429
+
     data = request.get_json()
     if not data:
         return jsonify({"error": "Kein JSON erhalten"}), 400
+    tone = data.pop("tone", None) if has_feature(_plan(), "custom_tone") else None
     try:
         property_data = _parse_property(data)
     except Exception as e:
         return jsonify({"error": f"Ungültige Eingabe: {e}"}), 400
     try:
-        expose_text = generate_expose(property_data)
+        expose_text = generate_expose(property_data, tone=tone)
         validation = validate_expose(property_data, expose_text)
     except Exception as e:
         app.logger.error("Generation failed: %s", e)
@@ -327,7 +431,8 @@ def api_generate():
         hallucination_details=validation["details"],
     )
     _save_job(job)
-    app.logger.info("Job created: %s for %s", job.job_id, property_data.property_id)
+    increment(_username())
+    app.logger.info("Job created: %s for %s (plan=%s)", job.job_id, property_data.property_id, _plan())
     return jsonify(job.model_dump())
 
 
@@ -335,20 +440,29 @@ def api_generate():
 @limiter.limit("10 per minute")
 @api_login_required
 def api_generate_stream():
+    # ── Plan limit check ──────────────────────────────────────────────────────
+    allowed, reason = check_limit(_username(), _plan())
+    if not allowed:
+        return jsonify({"error": reason}), 429
+
     data = request.get_json()
     if not data:
         return jsonify({"error": "Kein JSON erhalten"}), 400
+    tone = data.pop("tone", None) if has_feature(_plan(), "custom_tone") else None
     try:
         property_data = _parse_property(data)
     except Exception as e:
         return jsonify({"error": f"Ungültige Eingabe: {e}"}), 400
 
-    job_id = str(uuid.uuid4())[:8]
+    job_id   = str(uuid.uuid4())[:8]
+    username = _username()
+    plan     = _plan()
+    phone    = get_user_phone(username)
 
     def generate():
         full_text = []
         try:
-            for chunk in stream_expose(property_data):
+            for chunk in stream_expose(property_data, tone=tone):
                 full_text.append(chunk)
                 yield f"data: {json.dumps({'type': 'chunk', 'text': chunk})}\n\n"
 
@@ -367,7 +481,17 @@ def api_generate_stream():
                 hallucination_details=validation["details"],
             )
             _save_job(job)
-            app.logger.info("Stream job: %s for %s", job_id, property_data.property_id)
+            increment(username)
+            app.logger.info("Stream job: %s for %s (plan=%s)", job_id, property_data.property_id, plan)
+
+            # WhatsApp push for Pro/Business
+            if has_feature(plan, "whatsapp") and phone:
+                try:
+                    from src.whatsapp_client import notify_expose_ready
+                    notify_expose_ready(phone, property_data.address, f"/review#{job_id}")
+                except Exception as e:
+                    app.logger.warning("WhatsApp notify failed: %s", e)
+
             yield f"data: {json.dumps({'type': 'done', 'job': job.model_dump()})}\n\n"
         except Exception as e:
             app.logger.error("Stream failed: %s", e)

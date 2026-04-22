@@ -8,20 +8,22 @@ from flask import redirect, session, url_for
 
 logger = logging.getLogger(__name__)
 
-# ── Primary admin (env-based) ─────────────────────────────────────────────────
+# ── Primary admin ─────────────────────────────────────────────────────────────
 _DEFAULT_HASH = b"$2b$12$98vol7EU./4uSdedSnTT7OCpXP0KZhBAj8OW8f.N.L/MSH/NnteP."
-_STORED_HASH = os.environ.get("ADMIN_PASSWORD_HASH", "").encode() or _DEFAULT_HASH
-ADMIN_USER = os.environ.get("ADMIN_USERNAME", "admin")
+_STORED_HASH  = os.environ.get("ADMIN_PASSWORD_HASH", "").encode() or _DEFAULT_HASH
+ADMIN_USER    = os.environ.get("ADMIN_USERNAME", "admin")
 
-# ── Additional users (stored in /tmp/users.json or config/users.json) ─────────
-_on_vercel = bool(os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"))
+# ── Users file ────────────────────────────────────────────────────────────────
+_on_vercel  = bool(os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"))
 _USERS_FILE = "/tmp/users.json" if _on_vercel else os.path.join(
     os.path.dirname(__file__), "..", "config", "users.json"
 )
 
+# users.json format: {username: {hash: str, plan: str, phone: str}}
+# backward compat: if value is a bare string → treat as hash, plan=starter
+
 
 def _load_users() -> dict:
-    """Return {username: bcrypt_hash_str} from users file."""
     try:
         if os.path.exists(_USERS_FILE):
             with open(_USERS_FILE, "r", encoding="utf-8") as f:
@@ -37,30 +39,82 @@ def _save_users(users: dict) -> None:
         json.dump(users, f, ensure_ascii=False, indent=2)
 
 
+def _get_user_record(username: str) -> dict:
+    """Return normalised user record dict. Returns {} if not found."""
+    users = _load_users()
+    raw = users.get(username)
+    if raw is None:
+        return {}
+    if isinstance(raw, str):
+        return {"hash": raw, "plan": "starter", "phone": ""}
+    return raw
+
+
+# ── Credentials ───────────────────────────────────────────────────────────────
+
 def check_credentials(username: str, password: str) -> bool:
-    # Check primary admin
     if username == ADMIN_USER:
         try:
             return bcrypt.checkpw(password.encode("utf-8"), _STORED_HASH)
         except Exception:
             return False
+    record = _get_user_record(username)
+    if not record:
+        return False
+    try:
+        return bcrypt.checkpw(password.encode("utf-8"), record["hash"].encode())
+    except Exception:
+        return False
 
-    # Check additional users
+
+# ── Plan helpers ──────────────────────────────────────────────────────────────
+
+def get_user_plan(username: str) -> str:
+    if username == ADMIN_USER:
+        return os.environ.get("ADMIN_PLAN", "pro").lower()
+    return _get_user_record(username).get("plan", "starter").lower()
+
+
+def get_user_phone(username: str) -> str:
+    if username == ADMIN_USER:
+        return os.environ.get("ADMIN_PHONE", "")
+    return _get_user_record(username).get("phone", "")
+
+
+def set_user_plan(username: str, plan: str) -> None:
+    if username == ADMIN_USER:
+        raise ValueError("Admin-Plan über ADMIN_PLAN in .env setzen.")
     users = _load_users()
-    if username in users:
-        try:
-            return bcrypt.checkpw(password.encode("utf-8"), users[username].encode())
-        except Exception:
-            return False
-
-    return False
-
-
-def is_admin(username: str) -> bool:
-    return username == ADMIN_USER
+    if username not in users:
+        raise ValueError("Benutzer nicht gefunden.")
+    rec = users[username]
+    if isinstance(rec, str):
+        rec = {"hash": rec, "plan": plan, "phone": ""}
+    else:
+        rec["plan"] = plan
+    users[username] = rec
+    _save_users(users)
 
 
-def add_user(username: str, password: str) -> None:
+def set_user_phone(username: str, phone: str) -> None:
+    users = _load_users()
+    if username == ADMIN_USER:
+        # stored via env only — nothing to persist here
+        return
+    if username not in users:
+        raise ValueError("Benutzer nicht gefunden.")
+    rec = users[username]
+    if isinstance(rec, str):
+        rec = {"hash": rec, "plan": "starter", "phone": phone}
+    else:
+        rec["phone"] = phone
+    users[username] = rec
+    _save_users(users)
+
+
+# ── User management ───────────────────────────────────────────────────────────
+
+def add_user(username: str, password: str, plan: str = "starter", phone: str = "") -> None:
     if not username or not password:
         raise ValueError("Benutzername und Passwort dürfen nicht leer sein.")
     if username == ADMIN_USER:
@@ -69,9 +123,9 @@ def add_user(username: str, password: str) -> None:
         raise ValueError("Passwort muss mindestens 8 Zeichen haben.")
     users = _load_users()
     hashed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode()
-    users[username] = hashed
+    users[username] = {"hash": hashed, "plan": plan, "phone": phone}
     _save_users(users)
-    logger.info("User added: %s", username)
+    logger.info("User added: %s (plan=%s)", username, plan)
 
 
 def delete_user(username: str) -> None:
@@ -85,24 +139,27 @@ def delete_user(username: str) -> None:
     logger.info("User deleted: %s", username)
 
 
-def change_password(username: str, new_password: str) -> None:
-    if len(new_password) < 8:
-        raise ValueError("Passwort muss mindestens 8 Zeichen haben.")
-    if username == ADMIN_USER:
-        raise ValueError("Admin-Passwort bitte über ADMIN_PASSWORD_HASH in .env ändern.")
-    users = _load_users()
-    if username not in users:
-        raise ValueError("Benutzer nicht gefunden.")
-    users[username] = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt()).decode()
-    _save_users(users)
-
-
 def list_users() -> list:
     users = _load_users()
-    result = [{"username": ADMIN_USER, "role": "admin"}]
-    for u in users:
-        result.append({"username": u, "role": "agent"})
+    result = [{"username": ADMIN_USER, "role": "admin",
+               "plan": get_user_plan(ADMIN_USER), "phone": get_user_phone(ADMIN_USER)}]
+    for u, data in users.items():
+        rec = data if isinstance(data, dict) else {"hash": data, "plan": "starter", "phone": ""}
+        result.append({
+            "username": u,
+            "role": "agent",
+            "plan": rec.get("plan", "starter"),
+            "phone": rec.get("phone", ""),
+        })
     return result
+
+
+def count_non_admin_users() -> int:
+    return len(_load_users())
+
+
+def is_admin(username: str) -> bool:
+    return username == ADMIN_USER
 
 
 # ── Decorators ────────────────────────────────────────────────────────────────

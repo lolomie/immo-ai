@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Upgrade erforderlich — Immo AI{% endblock %}
+{% block content %}
+<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100vh - 128px);padding:2rem;text-align:center;">
+  <div style="max-width:480px;">
+    <div style="font-size:3.5rem;margin-bottom:1rem;">🔒</div>
+    <h1 style="font-size:1.75rem;font-weight:800;color:var(--navy);letter-spacing:-.03em;margin-bottom:.75rem;">
+      {{ feature }} nicht verfügbar
+    </h1>
+    <p style="color:var(--slate);font-size:1rem;max-width:380px;margin:0 auto 1.5rem;line-height:1.65;">
+      Das <strong>{{ feature }}</strong> ist im
+      <strong>{{ current_plan|title }}-Plan</strong> nicht enthalten.
+      Upgraden Sie auf den <strong>{{ required_plan|title }}-Plan</strong> um diese Funktion zu nutzen.
+    </p>
+    <div style="background:var(--bg-subtle);border:1.5px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem 1.5rem;margin-bottom:2rem;">
+      {% set plan_prices = {"pro": "99 €/Monat", "business": "199 €/Monat"} %}
+      <div style="font-size:.8125rem;color:var(--slate);margin-bottom:.375rem;">
+        {{ required_plan|title }}-Plan ab
+      </div>
+      <div style="font-size:2rem;font-weight:900;color:var(--navy);letter-spacing:-.04em;">
+        {{ plan_prices.get(required_plan, "") }}
+      </div>
+    </div>
+    <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
+      <a href="/signup?plan={{ required_plan }}" class="btn btn-primary">
+        Auf {{ required_plan|title }} upgraden →
+      </a>
+      <a href="/generate" class="btn btn-outline">Zurück zum Generator</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
