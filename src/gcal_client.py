@@ -75,14 +75,13 @@ def create_event(
         "reminders": {
             "useDefault": False,
             "overrides": [
-                {"method": "email", "minutes": 24 * 60},
                 {"method": "popup", "minutes": 60},
             ],
         },
     }
 
-    if attendee_emails:
-        event_body["attendees"] = [{"email": e} for e in attendee_emails if e]
+    # Note: service accounts cannot add attendees to external calendars
+    # Contact info is included in the description instead
 
     if appointment_id:
         event_body["extendedProperties"] = {
