@@ -237,6 +237,50 @@ def get_lead_by_id(lead_id: str) -> Optional[dict]:
     return None
 
 
+# ── Web UI → Sheets: write new rows ──────────────────────────────────────────
+
+def append_expose_row_from_job(job: dict, agent_email: str) -> None:
+    """Write a new row to Exposé-Inputs after web-UI generation. Fails silently if not configured."""
+    if not SHEETS_SPREADSHEET_ID:
+        return
+    try:
+        sheet = _get_spreadsheet().worksheet("Exposé-Inputs")
+        row = [""] * len(EXPOSE_HEADERS)
+        row[COL["expose_id"]]        = str(uuid.uuid4())[:8]
+        row[COL["property_id"]]      = job.get("property_id", "")
+        row[COL["property_address"]] = job.get("property_id", "")
+        row[COL["agent_email"]]      = agent_email
+        row[COL["status"]]           = "generated"
+        row[COL["job_id"]]           = job.get("job_id", "")
+        sheet.append_row(row, value_input_option="USER_ENTERED")
+        logger.info("Appended expose row for job %s to Sheets", job.get("job_id"))
+    except Exception as e:
+        logger.error("Failed to append expose row to Sheets: %s", e)
+
+
+def append_termin_row(appt: dict, agent_email: str, agent_name: str = "") -> None:
+    """Write a new appointment row to Termine sheet. Fails silently if not configured."""
+    if not SHEETS_SPREADSHEET_ID:
+        return
+    try:
+        sheet = _get_spreadsheet().worksheet("Termine")
+        TCOL = {h: i for i, h in enumerate(TERMINE_HEADERS)}
+        row = [""] * len(TERMINE_HEADERS)
+        dt_start = f"{appt.get('date', '')}T{appt.get('time', '')}:00"
+        row[TCOL["appointment_id"]]    = appt.get("appointment_id", "")
+        row[TCOL["agent_name"]]        = agent_name
+        row[TCOL["agent_email"]]       = agent_email
+        row[TCOL["datetime_start"]]    = dt_start
+        row[TCOL["property_address"]] = appt.get("property_id", "")
+        row[TCOL["status"]]            = "scheduled"
+        row[TCOL["confirmation_sent"]] = "FALSE"
+        row[TCOL["reminder_sent"]]     = "FALSE"
+        sheet.append_row(row, value_input_option="USER_ENTERED")
+        logger.info("Appended termin row %s to Sheets", appt.get("appointment_id"))
+    except Exception as e:
+        logger.error("Failed to append termin row to Sheets: %s", e)
+
+
 # ── Sheet initialization ──────────────────────────────────────────────────────
 
 def ensure_sheet_headers() -> None:

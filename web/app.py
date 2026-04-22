@@ -364,34 +364,49 @@ def calendar_create():
     try:
         appt = create_appointment(data)
 
-        # Send confirmation email + sync to Google Calendar in background
+        # Sync to Sheets + Google Calendar in background
+        _username_snap = _username()
+        _appt_dict = appt.to_dict()
         def _post_create():
+            agent_email = get_user_email(_username_snap)
+            agent_name  = _username_snap
+
+            # 1. Write to Google Sheets Termine tab
             try:
-                from src.email_client import send_appointment_confirmation
-                plan  = _plan()
-                phone = get_user_phone(_username())
-                lead_email = data.get("lead_email", "").strip()
-                if lead_email:
-                    send_appointment_confirmation(
-                        lead_email=lead_email,
-                        lead_name=data.get("lead_name", "Interessent"),
-                        agent_name=data.get("agent_name", session.get("username", "Ihr Makler")),
-                        property_address=data.get("property_address", data.get("title", "")),
-                        datetime_start=data.get("start_time", ""),
-                        appointment_id=appt.appointment_id,
-                    )
-                    app.logger.info("Confirmation email sent for %s", appt.appointment_id)
-                # WhatsApp for Pro/Business
-                if has_feature(plan, "whatsapp") and phone:
-                    from src.whatsapp_client import notify_appointment
-                    notify_appointment(
-                        phone,
-                        data.get("lead_name", "Interessent"),
-                        data.get("property_address", data.get("title", "")),
-                        data.get("start_time", ""),
-                    )
+                from src.sheets_client import append_termin_row
+                append_termin_row(_appt_dict, agent_email, agent_name)
             except Exception as e:
-                app.logger.error("Post-create calendar task failed: %s", e)
+                app.logger.warning("Sheets termin sync failed: %s", e)
+
+            # 2. Sync to Google Calendar
+            try:
+                from src.gcal_client import create_event
+                from src.config import GCAL_CALENDAR_ID, GOOGLE_SERVICE_ACCOUNT_FILE, GOOGLE_SERVICE_ACCOUNT_JSON
+                if GCAL_CALENDAR_ID and (GOOGLE_SERVICE_ACCOUNT_FILE or GOOGLE_SERVICE_ACCOUNT_JSON):
+                    dt_start = f"{_appt_dict['date']}T{_appt_dict['time']}:00"
+                    from datetime import datetime, timedelta
+                    dt_end = (datetime.fromisoformat(dt_start) + timedelta(hours=1)).isoformat()
+                    title = f"{_appt_dict['type']} – {_appt_dict['client_name']}"
+                    if _appt_dict.get("property_id"):
+                        title += f" ({_appt_dict['property_id']})"
+                    desc = f"Kunde: {_appt_dict['client_name']}"
+                    if _appt_dict.get("client_contact"):
+                        desc += f"\nKontakt: {_appt_dict['client_contact']}"
+                    if _appt_dict.get("notes"):
+                        desc += f"\nNotizen: {_appt_dict['notes']}"
+                    attendees = [a for a in [agent_email] if a]
+                    gcal_id = create_event(
+                        title=title,
+                        start_dt=dt_start,
+                        end_dt=dt_end,
+                        description=desc,
+                        location=_appt_dict.get("property_id", ""),
+                        attendee_emails=attendees,
+                        appointment_id=_appt_dict["appointment_id"],
+                    )
+                    app.logger.info("GCal event created: %s for appt %s", gcal_id, _appt_dict["appointment_id"])
+            except Exception as e:
+                app.logger.warning("Google Calendar sync failed: %s", e)
 
         import threading
         threading.Thread(target=_post_create, daemon=True).start()
@@ -512,6 +527,16 @@ def api_generate_stream():
             _save_job(job)
             increment(username)
             app.logger.info("Stream job: %s for %s (plan=%s)", job_id, property_data.property_id, plan)
+
+            # Write to Google Sheets (non-blocking)
+            def _sync_to_sheets(j=job.model_dump(), e=get_user_email(username)):
+                try:
+                    from src.sheets_client import append_expose_row_from_job
+                    append_expose_row_from_job(j, e)
+                except Exception as _e:
+                    app.logger.warning("Sheets sync failed: %s", _e)
+            import threading as _t
+            _t.Thread(target=_sync_to_sheets, daemon=True).start()
 
             # WhatsApp push for Pro/Business
             if has_feature(plan, "whatsapp") and phone:
