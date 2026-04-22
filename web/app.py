@@ -420,9 +420,12 @@ def google_callback():
         except ImportError:
             from auth import get_or_create_google_user
         username = get_or_create_google_user(google_id, email, full_name)
+    except ValueError as e:
+        app.logger.warning("Google OAuth rejected: %s (%s)", email, e)
+        return render_template("login.html", error=str(e), username="")
     except Exception as e:
-        app.logger.error("Google OAuth user creation failed: %s", e)
-        return render_template("login.html", error="Konto konnte nicht erstellt werden.", username="")
+        app.logger.error("Google OAuth failed: %s", e)
+        return render_template("login.html", error="Google-Anmeldung fehlgeschlagen. Bitte erneut versuchen.", username="")
 
     session["logged_in"] = True
     session["username"]  = username

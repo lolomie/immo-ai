@@ -231,41 +231,32 @@ def list_users() -> list:
 
 def get_or_create_google_user(google_id: str, email: str, full_name: str) -> str:
     """
-    Find or create a user by Google ID. Returns the username.
-    - If google_id exists in DB → return that user's username
-    - If email exists in DB → link google_id to that account
-    - Otherwise → create new account (username = email prefix)
+    Find an existing user by Google ID or email and link their Google account.
+    Does NOT auto-create new users — admin must create accounts first.
+    Raises ValueError if no matching account exists.
     """
     fetchone, _, execute = _db()
 
-    # 1. Find by google_id
+    # 1. Already linked by google_id
     row = fetchone("SELECT username FROM users WHERE google_id = ?", (google_id,))
     if row:
         return row["username"]
 
-    # 2. Find by email → link google_id
+    # 2. Email matches an existing account → link google_id
     row = fetchone("SELECT username FROM users WHERE email = ?", (email,))
     if row:
-        execute("UPDATE users SET google_id=?, updated_at=datetime('now') WHERE username=?",
-                (google_id, row["username"]))
+        execute(
+            "UPDATE users SET google_id=?, updated_at=datetime('now') WHERE username=?",
+            (google_id, row["username"]),
+        )
+        logger.info("Google OAuth: linked google_id to existing user %s", row["username"])
         return row["username"]
 
-    # 3. Create new account
-    base = email.split("@")[0].lower().replace(".", "_")
-    username = base
-    counter = 1
-    while fetchone("SELECT 1 FROM users WHERE username = ?", (username,)):
-        username = f"{base}{counter}"
-        counter += 1
-
-    execute(
-        """INSERT INTO users (username, password_hash, full_name, email, google_id,
-                              plan, gcal_calendar_id)
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
-        (username, "", full_name, email, google_id, "starter", email),
+    # 3. No account found → reject
+    raise ValueError(
+        f"Kein Konto für {email} gefunden. "
+        "Bitte wende dich an den Administrator."
     )
-    logger.info("Google OAuth: new user created %s (%s)", username, email)
-    return username
 
 
 def count_non_admin_users() -> int:
