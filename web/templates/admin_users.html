@@ -1,11 +1,191 @@
 {% extends "base.html" %}
 {% block title %}Benutzerverwaltung — Immo AI{% endblock %}
 {% block content %}
+
+<style>
+/* ── Page layout ── */
+.au-body { max-width: 960px; margin: 0 auto; padding: 1.5rem; }
+
+/* ── Add-user form ── */
+.au-add-card { margin-bottom: 1.75rem; }
+.au-add-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: .875rem;
+  margin-bottom: .875rem;
+}
+.au-add-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: .875rem;
+  align-items: flex-end;
+}
+
+/* ── User cards (desktop = table-like rows, mobile = stacked cards) ── */
+.au-table-head {
+  display: grid;
+  grid-template-columns: 1.4fr 1.6fr 1.4fr 0.9fr 1.1fr 0.7fr 80px;
+  gap: .5rem;
+  padding: .5rem 1rem;
+  font-size: .75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--slate);
+  border-bottom: 2px solid var(--border);
+  margin-bottom: .5rem;
+}
+.au-user-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1.6fr 1.4fr 0.9fr 1.1fr 0.7fr 80px;
+  gap: .5rem;
+  align-items: center;
+  padding: .75rem 1rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  margin-bottom: .625rem;
+  transition: box-shadow var(--transition);
+}
+.au-user-row:hover { box-shadow: var(--shadow-md); }
+.au-cell-label {
+  display: none;
+  font-size: .7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--slate);
+  margin-bottom: .2rem;
+}
+.au-field-input {
+  width: 100%;
+  padding: .4rem .65rem;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  font-size: .8125rem;
+  font-family: inherit;
+  color: var(--navy-800);
+  background: var(--bg);
+  transition: border-color var(--transition), box-shadow var(--transition);
+  min-height: 36px;
+}
+.au-field-input:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+}
+.au-field-select {
+  width: 100%;
+  padding: .4rem .65rem;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  font-size: .8125rem;
+  font-family: inherit;
+  background: var(--bg);
+  color: var(--navy-800);
+  min-height: 36px;
+}
+.au-username {
+  font-weight: 700;
+  color: var(--navy);
+  font-size: .9375rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.save-indicator {
+  display: none;
+  font-size: .7rem;
+  color: var(--green);
+  font-weight: 600;
+  margin-top: .2rem;
+}
+.save-indicator.visible { display: block; }
+
+/* ── Mobile: cards ── */
+@media (max-width: 840px) {
+  .au-add-grid { grid-template-columns: 1fr; }
+  .au-add-row  { grid-template-columns: 1fr; }
+  .au-add-row .btn { width: 100%; justify-content: center; }
+  .au-table-head { display: none; }
+
+  .au-user-row {
+    display: block;
+    padding: 1rem;
+    position: relative;
+  }
+  .au-cell-label { display: block; }
+
+  /* Name + role header row */
+  .au-row-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    padding-bottom: .875rem;
+    border-bottom: 1px solid var(--border);
+    gap: .75rem;
+  }
+  .au-row-header .au-username { font-size: 1rem; }
+
+  /* expand/collapse toggle */
+  .au-toggle {
+    display: flex;
+    align-items: center;
+    gap: .375rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: .8125rem;
+    color: var(--blue);
+    font-weight: 600;
+    padding: .25rem .5rem;
+    border-radius: 6px;
+    -webkit-tap-highlight-color: transparent;
+    white-space: nowrap;
+  }
+  .au-toggle:hover { background: var(--blue-light); }
+
+  .au-row-fields {
+    display: none;
+    grid-template-columns: 1fr;
+    gap: .875rem;
+  }
+  .au-row-fields.open { display: grid; }
+
+  .au-row-actions {
+    display: flex;
+    gap: .625rem;
+    margin-top: 1rem;
+    padding-top: .875rem;
+    border-top: 1px solid var(--border);
+  }
+  .au-row-actions .btn { flex: 1; justify-content: center; }
+
+  /* hide desktop-only cells on mobile */
+  .au-desktop-only { display: none !important; }
+  .au-field-input, .au-field-select {
+    font-size: 1rem;
+    min-height: 44px;
+    padding: .625rem .875rem;
+  }
+}
+
+@media (min-width: 841px) {
+  .au-row-header { display: contents; }
+  .au-toggle { display: none; }
+  .au-row-fields { display: contents; }
+  .au-row-actions { display: contents; }
+  .au-mobile-only { display: none !important; }
+}
+</style>
+
 <div class="app-header">
   <h1>Benutzerverwaltung</h1>
   <p>Makler anlegen, verwalten und Pläne zuweisen.</p>
 </div>
-<div class="app-body">
+
+<div class="au-body">
 
   {% if not can_add_users %}
   <div class="alert alert-warning" style="margin-bottom:1.5rem;">
@@ -14,124 +194,190 @@
   </div>
   {% endif %}
 
-  <!-- Add user form -->
-  <div class="card" style="margin-bottom:2rem; {% if not can_add_users %}opacity:.5;pointer-events:none;{% endif %}">
+  <!-- ── Add user card ── -->
+  <div class="card au-add-card {% if not can_add_users %}" style="opacity:.5;pointer-events:none;"{% else %}"{% endif %}>
     <h3 style="margin-bottom:1.25rem;font-size:1rem;font-weight:700;color:var(--navy);">Neuen Benutzer hinzufügen</h3>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.875rem;margin-bottom:.875rem;">
+    <div class="au-add-grid">
       <div class="field">
-        <label>Benutzername</label>
-        <input type="text" id="newUsername" placeholder="maria.mueller">
+        <label>Benutzername <span style="color:var(--red);">*</span></label>
+        <input type="text" id="newUsername" placeholder="maria.mueller" autocomplete="off">
       </div>
       <div class="field">
         <label>E-Mail <span class="opt">für Benachrichtigungen</span></label>
         <input type="email" id="newEmail" placeholder="maria@makler.de">
       </div>
       <div class="field">
-        <label>Passwort <span class="opt">min. 8 Zeichen</span></label>
+        <label>Passwort <span style="color:var(--red);">*</span> <span class="opt">min. 8 Zeichen</span></label>
         <input type="password" id="newPassword" placeholder="Sicheres Passwort">
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:.875rem;align-items:flex-end;">
+    <div class="au-add-row">
       <div class="field" style="margin:0;">
         <label>Plan</label>
         <select id="newPlan">
-          {% for key, p in all_plans.items() %}
-            {% if key != 'admin' %}
-            <option value="{{ key }}" {% if key == 'starter' %}selected{% endif %}>{{ p.name }}</option>
-            {% endif %}
-          {% endfor %}
+          {% for key, p in all_plans.items() %}{% if key != 'admin' %}
+          <option value="{{ key }}" {% if key == 'starter' %}selected{% endif %}>{{ p.name }}</option>
+          {% endif %}{% endfor %}
         </select>
       </div>
       <div class="field" style="margin:0;">
         <label>WhatsApp <span class="opt">optional</span></label>
         <input type="tel" id="newPhone" placeholder="+49 170 123 4567">
       </div>
-      <button class="btn btn-primary" onclick="addUser()">+ Hinzufügen</button>
+      <button class="btn btn-primary" onclick="addUser()" id="addBtn">+ Hinzufügen</button>
     </div>
-    <div id="addError" class="alert alert-error" style="display:none;margin-top:1rem;"></div>
+    <div id="addError"   class="alert alert-error"   style="display:none;margin-top:1rem;"></div>
     <div id="addSuccess" class="alert alert-success" style="display:none;margin-top:1rem;"></div>
   </div>
 
-  <!-- User table -->
-  <div class="card" style="padding:1.5rem;">
-    <h3 style="margin-bottom:1.25rem;font-size:1rem;font-weight:700;color:var(--navy);">Aktive Benutzer ({{ users|length }})</h3>
-    <table style="width:100%;border-collapse:collapse;">
-      <thead>
-        <tr style="border-bottom:2px solid var(--border);">
-          <th style="text-align:left;padding:8px 12px;font-size:.8125rem;color:var(--slate);">Benutzer</th>
-          <th style="text-align:left;padding:8px 12px;font-size:.8125rem;color:var(--slate);">E-Mail</th>
-          <th style="text-align:left;padding:8px 12px;font-size:.8125rem;color:var(--slate);">Google Kalender ID</th>
-          <th style="text-align:left;padding:8px 12px;font-size:.8125rem;color:var(--slate);">Plan</th>
-          <th style="text-align:left;padding:8px 12px;font-size:.8125rem;color:var(--slate);">WhatsApp</th>
-          <th style="text-align:left;padding:8px 12px;font-size:.8125rem;color:var(--slate);">Rolle</th>
-          <th style="padding:8px 12px;"></th>
-        </tr>
-      </thead>
-      <tbody id="userTableBody">
-        {% for user in users %}
-        <tr id="row-{{ user.username }}" style="border-bottom:1px solid var(--border);">
-          <td style="padding:10px 12px;font-weight:600;color:var(--navy);">{{ user.username }}</td>
-          <td style="padding:10px 12px;">
-            {% if user.role == 'admin' %}
-              <span style="font-size:.8125rem;color:var(--slate-light);">{{ user.email or 'via .env' }}</span>
-            {% else %}
-              <input type="email" value="{{ user.email or '' }}" placeholder="email@domain.de"
-                style="padding:.3rem .6rem;border:1.5px solid var(--border);border-radius:6px;font-size:.8125rem;width:175px;"
-                onblur="setEmail('{{ user.username }}', this.value)">
-            {% endif %}
-          </td>
-          <td style="padding:10px 12px;">
-            {% if user.role == 'admin' %}
-              <span style="font-size:.8125rem;color:var(--slate-light);">{{ user.email or 'via .env (GCAL_CALENDAR_ID)' }}</span>
-            {% else %}
-              <input type="text" value="{{ user.gcal_calendar_id or '' }}" placeholder="anna@gmx.de"
-                title="Google Calendar ID — meistens die Gmail/GMX-Adresse des Users"
-                style="padding:.3rem .6rem;border:1.5px solid var(--border);border-radius:6px;font-size:.8125rem;width:175px;"
-                onblur="setGcalId('{{ user.username }}', this.value)">
-            {% endif %}
-          </td>
-          <td style="padding:10px 12px;">
-            {% if user.role == 'admin' %}
-              <span class="badge badge-success">{{ user.plan|title }}</span>
-            {% else %}
-              <select onchange="setPlan('{{ user.username }}', this.value)"
-                style="padding:.3rem .6rem;border:1.5px solid var(--border);border-radius:6px;font-size:.8125rem;">
-                {% for key, p in all_plans.items() %}
-                  {% if key != 'admin' %}
-                  <option value="{{ key }}" {% if key == user.plan %}selected{% endif %}>{{ p.name }}</option>
-                  {% endif %}
-                {% endfor %}
-              </select>
-            {% endif %}
-          </td>
-          <td style="padding:10px 12px;">
-            {% if user.role != 'admin' %}
-              <input type="tel" value="{{ user.phone or '' }}" placeholder="+49…"
-                style="padding:.3rem .6rem;border:1.5px solid var(--border);border-radius:6px;font-size:.8125rem;width:140px;"
-                onblur="setPhone('{{ user.username }}', this.value)">
-            {% else %}
-              <span style="color:var(--slate-light);font-size:.8125rem;">via .env</span>
-            {% endif %}
-          </td>
-          <td style="padding:10px 12px;">
-            <span class="badge {% if user.role == 'admin' %}badge-success{% else %}badge-pending{% endif %}">
+  <!-- ── User list ── -->
+  <div class="card" style="padding:1.25rem 1rem;">
+    <h3 style="margin-bottom:1.25rem;font-size:1rem;font-weight:700;color:var(--navy);padding:0 .25rem;">
+      Aktive Benutzer ({{ users|length }})
+    </h3>
+
+    <!-- Desktop header -->
+    <div class="au-table-head">
+      <div>Benutzer</div>
+      <div>E-Mail</div>
+      <div>Google Kalender-ID</div>
+      <div>Plan</div>
+      <div>WhatsApp</div>
+      <div>Rolle</div>
+      <div></div>
+    </div>
+
+    <!-- User rows -->
+    {% for user in users %}
+    <div class="au-user-row" id="row-{{ user.username }}">
+
+      <!-- ── Mobile: collapsible header ── -->
+      <div class="au-row-header">
+        <div>
+          <div class="au-username">{{ user.username }}</div>
+          <div style="margin-top:.2rem;">
+            <span class="badge {% if user.role == 'admin' %}badge-success{% else %}badge-pending{% endif %}" style="font-size:.7rem;">
               {{ 'Admin' if user.role == 'admin' else 'Makler' }}
             </span>
-          </td>
-          <td style="padding:10px 12px;text-align:right;">
             {% if user.role != 'admin' %}
-              <button class="btn btn-outline btn-sm" style="color:var(--red);border-color:var(--red-border);"
-                onclick="deleteUser('{{ user.username }}')">Löschen</button>
+            <span class="badge badge-warning" style="font-size:.7rem;margin-left:.3rem;">
+              {{ user.plan|title if user.plan else 'starter' }}
+            </span>
             {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+          </div>
+        </div>
+        {% if user.role != 'admin' %}
+        <button class="au-toggle" onclick="toggleRow('{{ user.username }}')">
+          <span id="toggle-icon-{{ user.username }}">▼</span> Bearbeiten
+        </button>
+        {% endif %}
+      </div>
+
+      <!-- ── Fields (visible always on desktop, toggled on mobile) ── -->
+      <div class="au-row-fields" id="fields-{{ user.username }}">
+
+        <!-- E-Mail -->
+        <div class="au-desktop-only"><!-- desktop: inline below username --></div>
+        <div>
+          <div class="au-cell-label">E-Mail</div>
+          {% if user.role == 'admin' %}
+            <span style="font-size:.8125rem;color:var(--slate-light);">{{ user.email or 'via .env' }}</span>
+          {% else %}
+            <input type="email" class="au-field-input" value="{{ user.email or '' }}"
+              placeholder="email@domain.de" id="email-{{ user.username }}"
+              onblur="setEmail('{{ user.username }}', this.value)">
+            <div class="save-indicator" id="saved-email-{{ user.username }}">✓ Gespeichert</div>
+          {% endif %}
+        </div>
+
+        <!-- Google Kalender-ID -->
+        <div>
+          <div class="au-cell-label">Google Kalender-ID</div>
+          {% if user.role == 'admin' %}
+            <span style="font-size:.8125rem;color:var(--slate-light);">via GCAL_CALENDAR_ID</span>
+          {% else %}
+            <input type="text" class="au-field-input" value="{{ user.gcal_calendar_id or '' }}"
+              placeholder="anna@gmail.com" id="gcal-{{ user.username }}"
+              title="Meistens die Gmail-Adresse des Nutzers"
+              onblur="setGcalId('{{ user.username }}', this.value)">
+            <div class="save-indicator" id="saved-gcal-{{ user.username }}">✓ Gespeichert</div>
+          {% endif %}
+        </div>
+
+        <!-- Plan -->
+        <div>
+          <div class="au-cell-label">Plan</div>
+          {% if user.role == 'admin' %}
+            <span class="badge badge-success">{{ user.plan|title }}</span>
+          {% else %}
+            <select class="au-field-select" id="plan-{{ user.username }}"
+              onchange="setPlan('{{ user.username }}', this.value)">
+              {% for key, p in all_plans.items() %}{% if key != 'admin' %}
+              <option value="{{ key }}" {% if key == user.plan %}selected{% endif %}>{{ p.name }}</option>
+              {% endif %}{% endfor %}
+            </select>
+            <div class="save-indicator" id="saved-plan-{{ user.username }}">✓ Gespeichert</div>
+          {% endif %}
+        </div>
+
+        <!-- WhatsApp -->
+        <div>
+          <div class="au-cell-label">WhatsApp</div>
+          {% if user.role == 'admin' %}
+            <span style="font-size:.8125rem;color:var(--slate-light);">via .env</span>
+          {% else %}
+            <input type="tel" class="au-field-input" value="{{ user.phone or '' }}"
+              placeholder="+49 170…" id="phone-{{ user.username }}"
+              onblur="setPhone('{{ user.username }}', this.value)">
+            <div class="save-indicator" id="saved-phone-{{ user.username }}">✓ Gespeichert</div>
+          {% endif %}
+        </div>
+
+        <!-- Role (desktop only) -->
+        <div class="au-desktop-only">
+          <span class="badge {% if user.role == 'admin' %}badge-success{% else %}badge-pending{% endif %}">
+            {{ 'Admin' if user.role == 'admin' else 'Makler' }}
+          </span>
+        </div>
+      </div>
+
+      <!-- ── Actions ── -->
+      <div class="au-row-actions">
+        {% if user.role != 'admin' %}
+        <!-- Desktop: small delete button -->
+        <button class="btn btn-outline btn-sm au-desktop-only"
+          style="color:var(--red);border-color:var(--red-border);"
+          onclick="deleteUser('{{ user.username }}')">Löschen</button>
+        <!-- Mobile: full-width delete button (shown inside expanded section) -->
+        <button class="btn btn-sm au-mobile-only"
+          style="background:var(--red-bg);color:var(--red);border:1.5px solid var(--red-border);flex:1;justify-content:center;"
+          onclick="deleteUser('{{ user.username }}')">🗑 Benutzer löschen</button>
+        {% else %}
+        <div class="au-desktop-only"></div>
+        {% endif %}
+      </div>
+
+    </div>
+    {% endfor %}
+
   </div>
 </div>
 
 <script>
+function toggleRow(username) {
+  const fields = document.getElementById('fields-' + username);
+  const icon   = document.getElementById('toggle-icon-' + username);
+  const open   = fields.classList.toggle('open');
+  icon.textContent = open ? '▲' : '▼';
+}
+
+function showSaved(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.add('visible');
+  setTimeout(() => el.classList.remove('visible'), 2200);
+}
+
 async function addUser() {
   const username = document.getElementById('newUsername').value.trim();
   const email    = document.getElementById('newEmail').value.trim();
@@ -140,6 +386,7 @@ async function addUser() {
   const phone    = document.getElementById('newPhone').value.trim();
   const errEl    = document.getElementById('addError');
   const okEl     = document.getElementById('addSuccess');
+  const btn      = document.getElementById('addBtn');
   errEl.style.display = 'none';
   okEl.style.display  = 'none';
 
@@ -149,14 +396,20 @@ async function addUser() {
     return;
   }
 
+  btn.disabled = true;
+  btn.textContent = 'Wird angelegt…';
+
   const res  = await fetch('/api/admin/users', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({username, email, password, plan, phone}),
   });
   const data = await res.json();
+  btn.disabled = false;
+  btn.textContent = '+ Hinzufügen';
+
   if (!res.ok) {
-    errEl.textContent = data.error || 'Fehler';
+    errEl.textContent = data.error || 'Fehler beim Anlegen.';
     errEl.style.display = 'block';
     return;
   }
@@ -173,17 +426,19 @@ async function deleteUser(username) {
   const res  = await fetch(`/api/admin/users/${encodeURIComponent(username)}`, {method: 'DELETE'});
   const data = await res.json();
   if (!res.ok) { alert(data.error || 'Fehler'); return; }
-  document.getElementById(`row-${username}`)?.remove();
+  const row = document.getElementById(`row-${username}`);
+  if (row) { row.style.opacity = '0'; row.style.transition = 'opacity .2s'; setTimeout(() => row.remove(), 220); }
 }
 
 async function setPlan(username, plan) {
-  const res  = await fetch(`/api/admin/users/${encodeURIComponent(username)}`, {
+  const res = await fetch(`/api/admin/users/${encodeURIComponent(username)}`, {
     method: 'PATCH',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({plan}),
   });
   const data = await res.json();
   if (!res.ok) alert(data.error || 'Plan-Änderung fehlgeschlagen');
+  else showSaved('saved-plan-' + username);
 }
 
 async function setPhone(username, phone) {
@@ -192,6 +447,7 @@ async function setPhone(username, phone) {
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({phone}),
   });
+  showSaved('saved-phone-' + username);
 }
 
 async function setEmail(username, email) {
@@ -202,6 +458,7 @@ async function setEmail(username, email) {
   });
   const data = await res.json();
   if (!res.ok) alert(data.error || 'E-Mail-Änderung fehlgeschlagen');
+  else showSaved('saved-email-' + username);
 }
 
 async function setGcalId(username, gcal_calendar_id) {
@@ -212,6 +469,7 @@ async function setGcalId(username, gcal_calendar_id) {
   });
   const data = await res.json();
   if (!res.ok) alert(data.error || 'Kalender-ID-Änderung fehlgeschlagen');
+  else showSaved('saved-gcal-' + username);
 }
 </script>
 {% endblock %}
