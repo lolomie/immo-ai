@@ -19,9 +19,9 @@ from src.generator import generate_expose, stream_expose
 from src.models import JobResult, PropertyInput
 from src.validator import validate_expose
 try:
-    from .auth import api_login_required, check_credentials, login_required
+    from .auth import api_login_required, check_credentials, login_required, admin_required, add_user, delete_user, list_users
 except ImportError:
-    from auth import api_login_required, check_credentials, login_required
+    from auth import api_login_required, check_credentials, login_required, admin_required, add_user, delete_user, list_users
 
 logging.basicConfig(
     level=logging.INFO,
@@ -149,6 +149,46 @@ def impressum_page():
     return render_template("impressum.html", auth_required=False)
 
 
+@app.route("/admin/users")
+@admin_required
+def admin_users_page():
+    users = list_users()
+    return render_template("admin_users.html", users=users, auth_required=False)
+
+
+# ── Admin User API ────────────────────────────────────────────────────────────
+
+@app.route("/api/admin/users", methods=["GET"])
+@admin_required
+def api_admin_list_users():
+    return jsonify({"users": list_users()})
+
+
+@app.route("/api/admin/users", methods=["POST"])
+@admin_required
+def api_admin_add_user():
+    data = request.get_json() or {}
+    username = data.get("username", "").strip()
+    password = data.get("password", "").strip()
+    try:
+        add_user(username, password)
+        app.logger.info("User created: %s by %s", username, session.get("username"))
+        return jsonify({"ok": True, "username": username})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route("/api/admin/users/<username>", methods=["DELETE"])
+@admin_required
+def api_admin_delete_user(username):
+    try:
+        delete_user(username)
+        app.logger.info("User deleted: %s by %s", username, session.get("username"))
+        return jsonify({"ok": True})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+
 # ── Calendar API ──────────────────────────────────────────────────────────────
 
 @app.route("/calendar/create", methods=["POST"])
@@ -159,6 +199,28 @@ def calendar_create():
         return jsonify({"error": "Kein JSON erhalten"}), 400
     try:
         appt = create_appointment(data)
+
+        # Send confirmation email + sync to Google Calendar in background
+        def _post_create():
+            try:
+                from src.email_client import send_appointment_confirmation
+                lead_email = data.get("lead_email", "").strip()
+                if lead_email:
+                    send_appointment_confirmation(
+                        lead_email=lead_email,
+                        lead_name=data.get("lead_name", "Interessent"),
+                        agent_name=data.get("agent_name", session.get("username", "Ihr Makler")),
+                        property_address=data.get("property_address", data.get("title", "")),
+                        datetime_start=data.get("start_time", ""),
+                        appointment_id=appt.appointment_id,
+                    )
+                    app.logger.info("Confirmation email sent for %s", appt.appointment_id)
+            except Exception as e:
+                app.logger.error("Post-create calendar task failed: %s", e)
+
+        import threading
+        threading.Thread(target=_post_create, daemon=True).start()
+
         return jsonify({"ok": True, "appointment": appt.to_dict()})
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
@@ -377,9 +439,45 @@ def api_review(job_id):
         job["status"] = "approved"
         job["reviewed_by"] = reviewer
         job["review_note"] = None
-        export_path = path.replace(".json", "_approved.txt")
-        with open(export_path, "w", encoding="utf-8") as f:
-            f.write(job["expose_text"])
+
+        # Generate .docx + upload to Drive + send email in background
+        def _deliver():
+            try:
+                from src.docx_creator import create_expose_docx_bytes, expose_filename
+                from src.drive_client import upload_docx_bytes
+                from src.email_client import send_expose_ready
+                from src.models import PropertyInput
+
+                prop = PropertyInput(
+                    property_id=job.get("property_id", job_id),
+                    address=job.get("property_id", ""),
+                    city="", zip_code="", property_type="Wohnung",
+                    size_sqm=0, rooms=0,
+                )
+                docx_bytes = create_expose_docx_bytes(prop, job["expose_text"], reviewer)
+                fname = expose_filename(prop)
+                doc_url = upload_docx_bytes(docx_bytes, fname)
+
+                # save URL back to job file
+                job["doc_url"] = doc_url
+                with open(path, "w", encoding="utf-8") as _f:
+                    json.dump(job, _f, ensure_ascii=False, indent=2)
+
+                # notify reviewer by email
+                send_expose_ready(
+                    agent_email=reviewer if "@" in reviewer else "",
+                    property_address=job.get("property_id", job_id),
+                    property_id=job.get("property_id", job_id),
+                    doc_url=doc_url,
+                    job_id=job_id,
+                )
+                app.logger.info("Approved job %s delivered: %s", job_id, doc_url)
+            except Exception as e:
+                app.logger.error("Delivery after approval failed for %s: %s", job_id, e, exc_info=True)
+
+        import threading
+        threading.Thread(target=_deliver, daemon=True).start()
+
     elif action == "reject":
         job["status"] = "rejected"
         job["reviewed_by"] = reviewer

@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Benutzerverwaltung — Immo AI{% endblock %}
+{% block content %}
+<div class="app-header">
+  <h1>Benutzerverwaltung</h1>
+  <p>Makler und Mitarbeiter verwalten.</p>
+</div>
+<div class="app-body">
+
+  <!-- Neuen Benutzer hinzufügen -->
+  <div class="card" style="margin-bottom:2rem; padding:1.5rem;">
+    <h3 style="margin-bottom:1rem; font-size:1rem; font-weight:700; color:var(--navy-700);">Neuen Benutzer hinzufügen</h3>
+    <div style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end;">
+      <div class="field" style="margin:0; flex:1; min-width:160px;">
+        <label>Benutzername</label>
+        <input type="text" id="newUsername" placeholder="z.B. maria.mueller" autocomplete="off">
+      </div>
+      <div class="field" style="margin:0; flex:1; min-width:160px;">
+        <label>Passwort (min. 8 Zeichen)</label>
+        <input type="password" id="newPassword" placeholder="Sicheres Passwort" autocomplete="new-password">
+      </div>
+      <button class="btn btn-primary" onclick="addUser()" style="margin-bottom:0;">+ Hinzufügen</button>
+    </div>
+    <div id="addError" class="alert alert-error" style="display:none; margin-top:1rem;"></div>
+    <div id="addSuccess" class="alert alert-success" style="display:none; margin-top:1rem;"></div>
+  </div>
+
+  <!-- Benutzerliste -->
+  <div class="card" style="padding:1.5rem;">
+    <h3 style="margin-bottom:1rem; font-size:1rem; font-weight:700; color:var(--navy-700);">Aktive Benutzer</h3>
+    <table style="width:100%; border-collapse:collapse;">
+      <thead>
+        <tr style="border-bottom:2px solid var(--border);">
+          <th style="text-align:left; padding:8px 12px; font-size:.8125rem; color:var(--slate);">Benutzername</th>
+          <th style="text-align:left; padding:8px 12px; font-size:.8125rem; color:var(--slate);">Rolle</th>
+          <th style="padding:8px 12px;"></th>
+        </tr>
+      </thead>
+      <tbody id="userTableBody">
+        {% for user in users %}
+        <tr id="row-{{ user.username }}" style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px 12px; font-weight:600;">{{ user.username }}</td>
+          <td style="padding:10px 12px;">
+            <span class="badge {% if user.role == 'admin' %}badge-success{% else %}badge-pending{% endif %}">
+              {{ 'Admin' if user.role == 'admin' else 'Makler' }}
+            </span>
+          </td>
+          <td style="padding:10px 12px; text-align:right;">
+            {% if user.role != 'admin' %}
+            <button class="btn btn-danger btn-sm" onclick="deleteUser('{{ user.username }}')">Löschen</button>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+async function addUser() {
+  const username = document.getElementById('newUsername').value.trim();
+  const password = document.getElementById('newPassword').value.trim();
+  const errEl = document.getElementById('addError');
+  const okEl = document.getElementById('addSuccess');
+  errEl.style.display = 'none';
+  okEl.style.display = 'none';
+
+  if (!username || !password) {
+    errEl.textContent = 'Bitte Benutzername und Passwort eingeben.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const res = await fetch('/api/admin/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    errEl.textContent = data.error || 'Fehler';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  okEl.textContent = `Benutzer "${username}" wurde angelegt.`;
+  okEl.style.display = 'block';
+  document.getElementById('newUsername').value = '';
+  document.getElementById('newPassword').value = '';
+
+  // Add row to table
+  const tbody = document.getElementById('userTableBody');
+  tbody.insertAdjacentHTML('beforeend', `
+    <tr id="row-${username}" style="border-bottom:1px solid var(--border);">
+      <td style="padding:10px 12px; font-weight:600;">${username}</td>
+      <td style="padding:10px 12px;"><span class="badge badge-pending">Makler</span></td>
+      <td style="padding:10px 12px; text-align:right;">
+        <button class="btn btn-danger btn-sm" onclick="deleteUser('${username}')">Löschen</button>
+      </td>
+    </tr>`);
+}
+
+async function deleteUser(username) {
+  if (!confirm(`Benutzer "${username}" wirklich löschen?`)) return;
+  const res = await fetch(`/api/admin/users/${encodeURIComponent(username)}`, { method: 'DELETE' });
+  const data = await res.json();
+  if (!res.ok) { alert(data.error || 'Fehler'); return; }
+  document.getElementById(`row-${username}`)?.remove();
+}
+</script>
+{% endblock %}

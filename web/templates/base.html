@@ -23,6 +23,9 @@
     <li><a class="nav-cta" href="/#kontakt">Demo anfragen</a></li>
     {% if session.get('logged_in') %}
     <li><a href="/generate" class="nav-cta" style="background:var(--green);">Dashboard</a></li>
+    {% if session.get('username') == 'admin' %}
+    <li><a href="/admin/users" style="color:var(--slate-light); font-size:.85rem;">👥 Benutzer</a></li>
+    {% endif %}
     <li><a href="/logout" style="color:var(--slate-light); font-size:.85rem;">Abmelden</a></li>
     {% else %}
     <li><a href="/login" class="nav-cta" style="background:transparent; border:1.5px solid rgba(255,255,255,.3); color:#fff;">Login</a></li>
