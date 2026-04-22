@@ -66,14 +66,7 @@ def upload_docx(file_path: str, filename: str) -> str:
     ).execute()
 
     file_id = uploaded["id"]
-
-    # Make the file viewable by anyone with the link
-    service.permissions().create(
-        fileId=file_id,
-        body={"type": "anyone", "role": "reader"},
-    ).execute()
-
-    url = uploaded.get("webViewLink", f"https://drive.google.com/file/d/{file_id}/view")
+    url = _make_public_and_get_url(service, file_id, uploaded)
     logger.info("Uploaded '%s' to Drive → %s", filename, url)
     return url
 
@@ -105,11 +98,30 @@ def upload_docx_bytes(content: bytes, filename: str) -> str:
     ).execute()
 
     file_id = uploaded["id"]
-    service.permissions().create(
-        fileId=file_id,
-        body={"type": "anyone", "role": "reader"},
-    ).execute()
-
-    url = uploaded.get("webViewLink", f"https://drive.google.com/file/d/{file_id}/view")
+    url = _make_public_and_get_url(service, file_id, uploaded)
     logger.info("Uploaded '%s' to Drive → %s", filename, url)
+    return url
+
+
+def _make_public_and_get_url(service, file_id: str, uploaded: dict) -> str:
+    """
+    Set 'anyone with link can view' permission and return the shareable URL.
+    Retries permission creation once on failure.
+    Always returns a valid URL even if the API response is missing webViewLink.
+    """
+    for attempt in range(2):
+        try:
+            service.permissions().create(
+                fileId=file_id,
+                body={"type": "anyone", "role": "reader"},
+            ).execute()
+            break
+        except Exception as e:
+            if attempt == 0:
+                logger.warning("Permission creation attempt 1 failed, retrying: %s", e)
+            else:
+                logger.error("Permission creation failed for file %s: %s — link may require Google login", file_id, e)
+
+    # Use webViewLink from API response; fall back to canonical URL if empty/missing
+    url = uploaded.get("webViewLink") or f"https://drive.google.com/file/d/{file_id}/view?usp=sharing"
     return url

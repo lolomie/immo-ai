@@ -74,31 +74,62 @@ def send_expose_ready(
     doc_url: str,
     job_id: str,
 ) -> None:
+    import html as _html
+
+    # Validate URL — never send a broken link
+    if not doc_url or not doc_url.startswith("http"):
+        logger.error("send_expose_ready: invalid doc_url=%r — email not sent", doc_url)
+        raise ValueError(f"Ungültige doc_url: {doc_url!r}")
+
+    safe_url = _html.escape(doc_url, quote=True)
+
     subject = f"✅ Exposé fertig — {property_address}"
-    body_html = f"""
+    body_html = f"""<!DOCTYPE html>
 <html><body style="font-family:sans-serif; color:#1e293b; max-width:600px; margin:auto; padding:24px;">
   <h2 style="color:#1a3a5c;">Exposé erfolgreich generiert</h2>
-  <p>Das KI-Exposé für <strong>{property_address}</strong> wurde erstellt und validiert.</p>
+  <p>Das KI-Exposé für <strong>{_html.escape(property_address)}</strong> wurde erstellt und validiert.</p>
   <table style="border-collapse:collapse; width:100%; margin:16px 0;">
-    <tr><td style="padding:8px; background:#f1f5f9; font-weight:600;">Objekt-ID</td>
-        <td style="padding:8px;">{property_id}</td></tr>
-    <tr><td style="padding:8px; background:#f1f5f9; font-weight:600;">Job-ID</td>
-        <td style="padding:8px;">{job_id}</td></tr>
+    <tr>
+      <td style="padding:8px; background:#f1f5f9; font-weight:600; width:120px;">Objekt-ID</td>
+      <td style="padding:8px;">{_html.escape(property_id)}</td>
+    </tr>
+    <tr>
+      <td style="padding:8px; background:#f1f5f9; font-weight:600;">Job-ID</td>
+      <td style="padding:8px;">{_html.escape(job_id)}</td>
+    </tr>
   </table>
-  <a href="{doc_url}" style="display:inline-block; background:#1a3a5c; color:#fff;
-     padding:12px 24px; border-radius:6px; text-decoration:none; font-weight:600;">
-    📄 Exposé öffnen (Google Drive)
-  </a>
-  <p style="margin-top:24px; font-size:12px; color:#94a3b8;">
-    Dieses Exposé wurde KI-generiert und durch Claude API auf Halluzinationen geprüft.
-    Bitte prüfen Sie den Inhalt vor der Weitergabe an Interessenten.
+
+  <!-- Primary CTA button -->
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+    <tr>
+      <td style="border-radius:6px; background:#1a3a5c;">
+        <a href="{safe_url}"
+           target="_blank"
+           style="display:inline-block; background:#1a3a5c; color:#ffffff;
+                  font-family:sans-serif; font-size:15px; font-weight:600;
+                  padding:14px 28px; border-radius:6px; text-decoration:none;
+                  mso-padding-alt:0; -webkit-text-size-adjust:none;">
+          &#128196;&nbsp; Exposé öffnen (Google Drive)
+        </a>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Fallback plain link (shown in clients that strip buttons) -->
+  <p style="margin-top:16px; font-size:13px; color:#64748b;">
+    Link funktioniert nicht? Direkt öffnen:<br>
+    <a href="{safe_url}" style="color:#2563eb; word-break:break-all;">{safe_url}</a>
   </p>
-</body></html>
-"""
+
+  <p style="margin-top:24px; font-size:12px; color:#94a3b8;">
+    Dieses Exposé wurde KI-generiert und automatisch auf Halluzinationen geprüft.
+    Bitte Inhalt vor Weitergabe an Interessenten prüfen.
+  </p>
+</body></html>"""
     body_text = (
         f"Exposé fertig: {property_address}\n"
-        f"Objekt-ID: {property_id} | Job-ID: {job_id}\n"
-        f"Dokument: {doc_url}\n\n"
+        f"Objekt-ID: {property_id} | Job-ID: {job_id}\n\n"
+        f"Exposé öffnen:\n{doc_url}\n\n"
         "Bitte Inhalt vor Weitergabe prüfen."
     )
     _send(agent_email, _build_message(agent_email, subject, body_html, body_text))
