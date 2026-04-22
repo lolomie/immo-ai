@@ -14,6 +14,7 @@ _here = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(_here, ".."))  # project root → src.*
 sys.path.insert(0, _here)                       # web/ → auth
 
+from src.db import init_db
 from src.calendar_service import create_appointment, delete_appointment, get_appointments
 from src.generator import generate_expose, stream_expose
 from src.models import JobResult, PropertyInput
@@ -25,13 +26,15 @@ try:
                        admin_required, add_user, delete_user, list_users,
                        get_user_plan, get_user_phone, get_user_email,
                        get_user_gcal_id, set_user_plan, set_user_phone,
-                       set_user_email, set_user_gcal_id, count_non_admin_users)
+                       set_user_email, set_user_gcal_id, count_non_admin_users,
+                       migrate_json_to_db, gdpr_delete_user)
 except ImportError:
     from auth import (api_login_required, check_credentials, login_required,
                       admin_required, add_user, delete_user, list_users,
                       get_user_plan, get_user_phone, get_user_email,
                       get_user_gcal_id, set_user_plan, set_user_phone,
-                      set_user_email, set_user_gcal_id, count_non_admin_users)
+                      set_user_email, set_user_gcal_id, count_non_admin_users,
+                      migrate_json_to_db, gdpr_delete_user)
 
 
 def _is_admin() -> bool:
@@ -70,6 +73,13 @@ limiter = Limiter(
 )
 
 from src.config import LOGS_DIR
+
+# ── DB init + JSON migration (runs once at startup) ───────────────────────────
+try:
+    init_db()
+    migrate_json_to_db()
+except Exception as _db_err:
+    app.logger.error("DB init failed: %s", _db_err)
 
 
 def _parse_property(data: dict):
@@ -142,6 +152,107 @@ def logout():
     return redirect(url_for("login_page"))
 
 
+# ── Google OAuth ──────────────────────────────────────────────────────────────
+
+_GOOGLE_AUTH_URL    = "https://accounts.google.com/o/oauth2/v2/auth"
+_GOOGLE_TOKEN_URL   = "https://oauth2.googleapis.com/token"
+_GOOGLE_USERINFO_URL= "https://www.googleapis.com/oauth2/v2/userinfo"
+
+def _google_client_id():
+    return os.environ.get("GOOGLE_CLIENT_ID", "")
+
+def _google_client_secret():
+    return os.environ.get("GOOGLE_CLIENT_SECRET", "")
+
+def _google_redirect_uri():
+    base = os.environ.get("APP_URL", "http://127.0.0.1:5000").rstrip("/")
+    return f"{base}/auth/google/callback"
+
+
+@app.route("/auth/google")
+def google_login():
+    client_id = _google_client_id()
+    if not client_id:
+        return render_template("login.html", error="Google-Login nicht konfiguriert (GOOGLE_CLIENT_ID fehlt).", username="")
+
+    import urllib.parse, secrets as _sec
+    state = _sec.token_urlsafe(16)
+    session["oauth_state"] = state
+
+    params = {
+        "client_id":     client_id,
+        "redirect_uri":  _google_redirect_uri(),
+        "response_type": "code",
+        "scope":         "openid email profile",
+        "state":         state,
+        "access_type":   "online",
+        "prompt":        "select_account",
+    }
+    url = _GOOGLE_AUTH_URL + "?" + urllib.parse.urlencode(params)
+    return redirect(url)
+
+
+@app.route("/auth/google/callback")
+def google_callback():
+    error = request.args.get("error")
+    if error:
+        return render_template("login.html", error=f"Google-Login abgebrochen: {error}", username="")
+
+    if request.args.get("state") != session.pop("oauth_state", None):
+        return render_template("login.html", error="Ungültiger OAuth-State. Bitte erneut versuchen.", username="")
+
+    code = request.args.get("code")
+    if not code:
+        return render_template("login.html", error="Kein Autorisierungscode erhalten.", username="")
+
+    # Exchange code for token
+    import requests as _req
+    token_resp = _req.post(_GOOGLE_TOKEN_URL, data={
+        "code":          code,
+        "client_id":     _google_client_id(),
+        "client_secret": _google_client_secret(),
+        "redirect_uri":  _google_redirect_uri(),
+        "grant_type":    "authorization_code",
+    }, timeout=10)
+
+    if not token_resp.ok:
+        app.logger.error("Google token exchange failed: %s", token_resp.text)
+        return render_template("login.html", error="Google-Authentifizierung fehlgeschlagen.", username="")
+
+    access_token = token_resp.json().get("access_token")
+
+    # Get user info
+    userinfo_resp = _req.get(_GOOGLE_USERINFO_URL,
+        headers={"Authorization": f"Bearer {access_token}"}, timeout=10)
+
+    if not userinfo_resp.ok:
+        return render_template("login.html", error="Google-Nutzerdaten konnten nicht abgerufen werden.", username="")
+
+    info      = userinfo_resp.json()
+    google_id = info.get("id", "")
+    email     = info.get("email", "")
+    full_name = info.get("name", "")
+
+    if not email:
+        return render_template("login.html", error="Keine E-Mail von Google erhalten.", username="")
+
+    try:
+        try:
+            from .auth import get_or_create_google_user
+        except ImportError:
+            from auth import get_or_create_google_user
+        username = get_or_create_google_user(google_id, email, full_name)
+    except Exception as e:
+        app.logger.error("Google OAuth user creation failed: %s", e)
+        return render_template("login.html", error="Konto konnte nicht erstellt werden.", username="")
+
+    session["logged_in"] = True
+    session["username"]  = username
+    session["plan"]      = get_user_plan(username)
+    app.logger.info("Google login: %s (%s)", username, email)
+    return redirect(url_for("generate_page"))
+
+
 # ── Pages (protected) ─────────────────────────────────────────────────────────
 
 @app.route("/")
@@ -209,19 +320,37 @@ def signup_page():
 @limiter.limit("5 per minute")
 def api_signup():
     data = request.get_json() or {}
-    name     = data.get("name", "").strip()
-    email    = data.get("email", "").strip()
-    company  = data.get("company", "").strip()
-    phone    = data.get("phone", "").strip()
-    plan_key = data.get("plan", "pro").strip()
+    name         = data.get("name", "").strip()
+    email        = data.get("email", "").strip()
+    company      = data.get("company", "").strip()
+    phone        = data.get("phone", "").strip()
+    plan_key     = data.get("plan", "pro").strip()
+    message      = data.get("message", "").strip()
+    gdpr_consent = bool(data.get("gdpr_consent", False))
 
     if not name or not email:
         return jsonify({"error": "Name und E-Mail sind Pflichtfelder."}), 400
+    if not gdpr_consent:
+        return jsonify({"error": "Bitte stimmen Sie der Datenschutzerklärung zu."}), 400
 
-    # Notify admin of new signup request
+    # ── 1. Persist to DB (primary, never loses data) ──────────────────────────
+    try:
+        from src.db import execute
+        ip = request.remote_addr or ""
+        execute(
+            """INSERT INTO signup_requests
+                   (full_name, email, company, phone, plan_key, message, gdpr_consent, ip_address)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (name, email, company, phone, plan_key, message, int(gdpr_consent), ip),
+        )
+        app.logger.info("Signup saved to DB: %s (%s), plan=%s", name, email, plan_key)
+    except Exception as e:
+        app.logger.error("Signup DB write failed: %s", e)
+        return jsonify({"error": "Registrierung konnte nicht gespeichert werden. Bitte erneut versuchen."}), 500
+
+    # ── 2. Notify admin via email (best-effort) ───────────────────────────────
     try:
         from src.email_client import _build_message, _send
-        from src.plans import get_plan
         plan = get_plan(plan_key)
         subject = f"🆕 Demo-Anfrage: {name} — {plan['name']}-Plan"
         body_html = f"""
@@ -232,17 +361,80 @@ def api_signup():
     <tr><td style="padding:8px;background:#f1f5f9;font-weight:600;">E-Mail</td><td style="padding:8px;">{email}</td></tr>
     <tr><td style="padding:8px;background:#f1f5f9;font-weight:600;">Unternehmen</td><td style="padding:8px;">{company or '—'}</td></tr>
     <tr><td style="padding:8px;background:#f1f5f9;font-weight:600;">Telefon</td><td style="padding:8px;">{phone or '—'}</td></tr>
-    <tr><td style="padding:8px;background:#f1f5f9;font-weight:600;">Gewünschter Plan</td><td style="padding:8px;font-weight:700;color:#2563eb;">{plan['name']} ({plan['monthly_price']} €/Monat)</td></tr>
+    <tr><td style="padding:8px;background:#f1f5f9;font-weight:600;">Plan</td><td style="padding:8px;font-weight:700;color:#2563eb;">{plan['name']} ({plan['monthly_price']} €/Monat)</td></tr>
+    <tr><td style="padding:8px;background:#f1f5f9;font-weight:600;">DSGVO</td><td style="padding:8px;color:#16a34a;">✓ Zugestimmt</td></tr>
   </table>
+  {f'<p><strong>Nachricht:</strong> {message}</p>' if message else ''}
 </body></html>"""
         body_text = f"Demo-Anfrage\nName: {name}\nEmail: {email}\nPlan: {plan['name']}"
         from src.config import EMAIL_FROM
         _send(EMAIL_FROM, _build_message(EMAIL_FROM, subject, body_html, body_text))
-        app.logger.info("Signup request from %s (%s), plan=%s", name, email, plan_key)
     except Exception as e:
-        app.logger.error("Signup notification failed: %s", e)
+        app.logger.warning("Signup email notification failed (data saved): %s", e)
 
     return jsonify({"ok": True, "message": "Vielen Dank! Wir melden uns innerhalb von 24 Stunden."})
+
+
+# ── DSGVO / GDPR endpoints ────────────────────────────────────────────────────
+
+@app.route("/api/gdpr/export", methods=["GET"])
+@api_login_required
+def api_gdpr_export():
+    """DSGVO Art. 20 — Datenportabilität: eigene Daten als JSON exportieren."""
+    username = _username()
+    from src.db import fetchone, fetchall
+    user = fetchone("SELECT username, full_name, email, phone, company, plan, created_at FROM users WHERE username = ?", (username,))
+    events = fetchall("SELECT * FROM calendar_events WHERE username = ?", (username,))
+    from src.usage_tracker import get_all_usage
+    return jsonify({
+        "export_date": datetime.now(timezone.utc).isoformat(),
+        "user": user,
+        "calendar_events": events,
+        "note": "Exportiert gemäß DSGVO Art. 20 (Recht auf Datenübertragbarkeit).",
+    })
+
+
+@app.route("/api/gdpr/delete", methods=["POST"])
+@api_login_required
+def api_gdpr_delete():
+    """DSGVO Art. 17 — Recht auf Löschung."""
+    username = _username()
+    data = request.get_json() or {}
+    confirm = data.get("confirm", "").strip()
+    if confirm != username:
+        return jsonify({"error": "Bitte Benutzernamen zur Bestätigung eingeben."}), 400
+    try:
+        result = gdpr_delete_user(username)
+        session.clear()
+        app.logger.info("GDPR delete: %s", username)
+        return jsonify({"ok": True, **result})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route("/api/admin/signups", methods=["GET"])
+@admin_required
+def api_admin_signups():
+    """Admin: alle Signup-Anfragen abrufen."""
+    from src.db import fetchall
+    rows = fetchall(
+        "SELECT id, full_name, email, company, phone, plan_key, status, gdpr_consent, created_at FROM signup_requests ORDER BY created_at DESC"
+    )
+    return jsonify({"signups": rows, "total": len(rows)})
+
+
+@app.route("/api/admin/signups/<int:signup_id>", methods=["PATCH"])
+@admin_required
+def api_admin_signup_status(signup_id):
+    """Admin: Signup-Status ändern (pending → contacted / converted / rejected)."""
+    data = request.get_json() or {}
+    status = data.get("status", "").strip()
+    valid = {"pending", "contacted", "converted", "rejected"}
+    if status not in valid:
+        return jsonify({"error": f"Status muss einer von {valid} sein."}), 400
+    from src.db import execute
+    execute("UPDATE signup_requests SET status = ? WHERE id = ?", (status, signup_id))
+    return jsonify({"ok": True})
 
 
 @app.route("/admin/users")

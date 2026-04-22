@@ -8,46 +8,68 @@ from flask import redirect, session, url_for
 
 logger = logging.getLogger(__name__)
 
-# ── Primary admin ─────────────────────────────────────────────────────────────
+# ── Primary admin (env-backed, never in DB) ───────────────────────────────────
 _DEFAULT_HASH = b"$2b$12$98vol7EU./4uSdedSnTT7OCpXP0KZhBAj8OW8f.N.L/MSH/NnteP."
 _STORED_HASH  = os.environ.get("ADMIN_PASSWORD_HASH", "").encode() or _DEFAULT_HASH
 ADMIN_USER    = os.environ.get("ADMIN_USERNAME", "admin")
 
-# ── Users file ────────────────────────────────────────────────────────────────
+# ── Legacy JSON path (for one-time migration) ─────────────────────────────────
 _on_vercel  = bool(os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"))
-_USERS_FILE = "/tmp/users.json" if _on_vercel else os.path.join(
+_JSON_FILE  = "/tmp/users.json" if _on_vercel else os.path.join(
     os.path.dirname(__file__), "..", "config", "users.json"
 )
 
-# users.json format: {username: {hash: str, plan: str, phone: str}}
-# backward compat: if value is a bare string → treat as hash, plan=starter
+
+# ── DB helpers ────────────────────────────────────────────────────────────────
+
+def _db():
+    from src.db import fetchone, fetchall, execute
+    return fetchone, fetchall, execute
 
 
-def _load_users() -> dict:
+def _get_user(username: str) -> dict:
+    fetchone, _, _ = _db()
+    return fetchone("SELECT * FROM users WHERE username = ?", (username,)) or {}
+
+
+# ── One-time JSON → DB migration ──────────────────────────────────────────────
+
+def migrate_json_to_db() -> None:
+    """Import users.json into the DB on first run. Idempotent."""
+    if not os.path.exists(_JSON_FILE):
+        return
     try:
-        if os.path.exists(_USERS_FILE):
-            with open(_USERS_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
+        with open(_JSON_FILE, "r", encoding="utf-8") as f:
+            raw = json.load(f)
     except Exception as e:
-        logger.error("Failed to load users file: %s", e)
-    return {}
+        logger.warning("JSON migration: could not read %s: %s", _JSON_FILE, e)
+        return
 
+    _, _, execute = _db()
+    migrated = 0
+    for username, data in raw.items():
+        if username == ADMIN_USER:
+            continue
+        if isinstance(data, str):
+            rec = {"hash": data, "plan": "starter", "phone": "", "email": ""}
+        else:
+            rec = data
+        existing = _get_user(username)
+        if existing:
+            continue
+        try:
+            execute(
+                """INSERT INTO users (username, password_hash, plan, phone, email)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (username, rec.get("hash", ""), rec.get("plan", "starter"),
+                 rec.get("phone", ""), rec.get("email", "")),
+            )
+            migrated += 1
+        except Exception as e:
+            logger.warning("Migration: skipping %s: %s", username, e)
 
-def _save_users(users: dict) -> None:
-    os.makedirs(os.path.dirname(_USERS_FILE), exist_ok=True)
-    with open(_USERS_FILE, "w", encoding="utf-8") as f:
-        json.dump(users, f, ensure_ascii=False, indent=2)
-
-
-def _get_user_record(username: str) -> dict:
-    """Return normalised user record dict. Returns {} if not found."""
-    users = _load_users()
-    raw = users.get(username)
-    if raw is None:
-        return {}
-    if isinstance(raw, str):
-        return {"hash": raw, "plan": "starter", "phone": ""}
-    return raw
+    if migrated:
+        logger.info("Migrated %d users from JSON → DB", migrated)
 
 
 # ── Credentials ───────────────────────────────────────────────────────────────
@@ -55,153 +77,201 @@ def _get_user_record(username: str) -> dict:
 def check_credentials(username: str, password: str) -> bool:
     if username == ADMIN_USER:
         try:
-            return bcrypt.checkpw(password.encode("utf-8"), _STORED_HASH)
+            return bcrypt.checkpw(password.encode(), _STORED_HASH)
         except Exception:
             return False
-    record = _get_user_record(username)
-    if not record:
+    rec = _get_user(username)
+    if not rec:
         return False
     try:
-        return bcrypt.checkpw(password.encode("utf-8"), record["hash"].encode())
+        return bcrypt.checkpw(password.encode(), rec["password_hash"].encode())
     except Exception:
         return False
 
 
-# ── Plan helpers ──────────────────────────────────────────────────────────────
+# ── Plan / profile helpers ────────────────────────────────────────────────────
 
 def get_user_plan(username: str) -> str:
     if username == ADMIN_USER:
         return os.environ.get("ADMIN_PLAN", "admin").lower()
-    return _get_user_record(username).get("plan", "starter").lower()
+    return (_get_user(username).get("plan") or "starter").lower()
 
 
 def get_user_phone(username: str) -> str:
     if username == ADMIN_USER:
         return os.environ.get("ADMIN_PHONE", "")
-    return _get_user_record(username).get("phone", "")
+    return _get_user(username).get("phone") or ""
 
 
 def get_user_email(username: str) -> str:
     if username == ADMIN_USER:
         return os.environ.get("ADMIN_EMAIL", os.environ.get("SMTP_USER", ""))
-    return _get_user_record(username).get("email", "")
+    return _get_user(username).get("email") or ""
 
 
 def get_user_gcal_id(username: str) -> str:
-    """Return the user's personal Google Calendar ID (their email or custom ID)."""
     if username == ADMIN_USER:
         return os.environ.get("GCAL_CALENDAR_ID", "")
-    rec = _get_user_record(username)
-    # Fall back to their email address as calendar ID if no explicit gcal_id set
-    return rec.get("gcal_calendar_id", "") or rec.get("email", "")
+    rec = _get_user(username)
+    return rec.get("gcal_calendar_id") or rec.get("email") or ""
 
 
 def set_user_gcal_id(username: str, gcal_id: str) -> None:
     if username == ADMIN_USER:
         raise ValueError("Admin-Kalender über GCAL_CALENDAR_ID in .env setzen.")
-    users = _load_users()
-    if username not in users:
-        raise ValueError("Benutzer nicht gefunden.")
-    rec = users[username]
-    if isinstance(rec, str):
-        rec = {"hash": rec, "plan": "starter", "phone": "", "email": "", "gcal_calendar_id": gcal_id}
-    else:
-        rec["gcal_calendar_id"] = gcal_id
-    users[username] = rec
-    _save_users(users)
+    _, _, execute = _db()
+    execute("UPDATE users SET gcal_calendar_id=?, updated_at=datetime('now') WHERE username=?",
+            (gcal_id, username))
 
 
 def set_user_plan(username: str, plan: str) -> None:
     if username == ADMIN_USER:
         raise ValueError("Admin-Plan über ADMIN_PLAN in .env setzen.")
-    users = _load_users()
-    if username not in users:
-        raise ValueError("Benutzer nicht gefunden.")
-    rec = users[username]
-    if isinstance(rec, str):
-        rec = {"hash": rec, "plan": plan, "phone": ""}
-    else:
-        rec["plan"] = plan
-    users[username] = rec
-    _save_users(users)
+    _, _, execute = _db()
+    execute("UPDATE users SET plan=?, updated_at=datetime('now') WHERE username=?",
+            (plan, username))
 
 
 def set_user_phone(username: str, phone: str) -> None:
-    users = _load_users()
     if username == ADMIN_USER:
         return
-    if username not in users:
-        raise ValueError("Benutzer nicht gefunden.")
-    rec = users[username]
-    if isinstance(rec, str):
-        rec = {"hash": rec, "plan": "starter", "phone": phone, "email": ""}
-    else:
-        rec["phone"] = phone
-    users[username] = rec
-    _save_users(users)
+    _, _, execute = _db()
+    execute("UPDATE users SET phone=?, updated_at=datetime('now') WHERE username=?",
+            (phone, username))
 
 
 def set_user_email(username: str, email: str) -> None:
     if username == ADMIN_USER:
         raise ValueError("Admin-E-Mail über ADMIN_EMAIL in .env setzen.")
-    users = _load_users()
-    if username not in users:
-        raise ValueError("Benutzer nicht gefunden.")
-    rec = users[username]
-    if isinstance(rec, str):
-        rec = {"hash": rec, "plan": "starter", "phone": "", "email": email}
-    else:
-        rec["email"] = email
-    users[username] = rec
-    _save_users(users)
+    _, _, execute = _db()
+    execute("UPDATE users SET email=?, updated_at=datetime('now') WHERE username=?",
+            (email, username))
 
 
 # ── User management ───────────────────────────────────────────────────────────
 
-def add_user(username: str, password: str, plan: str = "starter", phone: str = "", email: str = "", gcal_calendar_id: str = "") -> None:
+def add_user(username: str, password: str, plan: str = "starter",
+             phone: str = "", email: str = "", gcal_calendar_id: str = "",
+             full_name: str = "", company: str = "",
+             gdpr_consent: bool = False) -> None:
     if not username or not password:
         raise ValueError("Benutzername und Passwort dürfen nicht leer sein.")
     if username == ADMIN_USER:
         raise ValueError("Dieser Benutzername ist reserviert.")
     if len(password) < 8:
         raise ValueError("Passwort muss mindestens 8 Zeichen haben.")
-    users = _load_users()
-    hashed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode()
-    users[username] = {"hash": hashed, "plan": plan, "phone": phone, "email": email, "gcal_calendar_id": gcal_calendar_id}
-    _save_users(users)
-    logger.info("User added: %s (plan=%s, email=%s)", username, plan, email)
+    if _get_user(username):
+        raise ValueError(f"Benutzername '{username}' ist bereits vergeben.")
+    _, _, execute = _db()
+    hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    from datetime import datetime, timezone
+    consent_at = datetime.now(timezone.utc).isoformat() if gdpr_consent else None
+    execute(
+        """INSERT INTO users
+               (username, password_hash, full_name, email, phone, company,
+                plan, gcal_calendar_id, gdpr_consent, gdpr_consent_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (username, hashed, full_name, email, phone, company,
+         plan, gcal_calendar_id, int(gdpr_consent), consent_at),
+    )
+    logger.info("User created: %s (plan=%s, email=%s)", username, plan, email)
 
 
 def delete_user(username: str) -> None:
     if username == ADMIN_USER:
         raise ValueError("Den Hauptadmin kann man nicht löschen.")
-    users = _load_users()
-    if username not in users:
+    if not _get_user(username):
         raise ValueError("Benutzer nicht gefunden.")
-    del users[username]
-    _save_users(users)
+    _, _, execute = _db()
+    execute("DELETE FROM users WHERE username = ?", (username,))
     logger.info("User deleted: %s", username)
 
 
+def gdpr_delete_user(username: str) -> dict:
+    """
+    DSGVO Art. 17 — Recht auf Löschung.
+    Deletes user + anonymises their calendar events and usage logs.
+    Returns a summary of what was deleted.
+    """
+    if username == ADMIN_USER:
+        raise ValueError("Admin-Account kann nicht gelöscht werden.")
+    fetchone, _, execute = _db()
+
+    user = _get_user(username)
+    if not user:
+        raise ValueError("Benutzer nicht gefunden.")
+
+    # Anonymise calendar events (keep for audit, remove PII)
+    execute(
+        "UPDATE calendar_events SET client_name='[gelöscht]', client_contact='' WHERE username=?",
+        (username,),
+    )
+    # Delete usage records
+    execute("DELETE FROM usage WHERE username = ?", (username,))
+    # Delete user record
+    execute("DELETE FROM users WHERE username = ?", (username,))
+
+    logger.info("GDPR delete completed for: %s", username)
+    return {"deleted_user": username, "anonymised_events": True, "deleted_usage": True}
+
+
 def list_users() -> list:
-    users = _load_users()
+    _, fetchall, _ = _db()
+    rows = fetchall("SELECT username, full_name, email, phone, company, plan, created_at FROM users ORDER BY created_at")
     result = [{"username": ADMIN_USER, "role": "admin",
-               "plan": get_user_plan(ADMIN_USER), "phone": get_user_phone(ADMIN_USER)}]
-    for u, data in users.items():
-        rec = data if isinstance(data, dict) else {"hash": data, "plan": "starter", "phone": ""}
-        result.append({
-            "username": u,
-            "role": "agent",
-            "plan": rec.get("plan", "starter"),
-            "phone": rec.get("phone", ""),
-            "email": rec.get("email", ""),
-            "gcal_calendar_id": rec.get("gcal_calendar_id", ""),
-        })
+               "plan": get_user_plan(ADMIN_USER),
+               "phone": get_user_phone(ADMIN_USER),
+               "email": get_user_email(ADMIN_USER)}]
+    for r in rows:
+        result.append({**r, "role": "agent"})
     return result
 
 
+# ── Google OAuth ──────────────────────────────────────────────────────────────
+
+def get_or_create_google_user(google_id: str, email: str, full_name: str) -> str:
+    """
+    Find or create a user by Google ID. Returns the username.
+    - If google_id exists in DB → return that user's username
+    - If email exists in DB → link google_id to that account
+    - Otherwise → create new account (username = email prefix)
+    """
+    fetchone, _, execute = _db()
+
+    # 1. Find by google_id
+    row = fetchone("SELECT username FROM users WHERE google_id = ?", (google_id,))
+    if row:
+        return row["username"]
+
+    # 2. Find by email → link google_id
+    row = fetchone("SELECT username FROM users WHERE email = ?", (email,))
+    if row:
+        execute("UPDATE users SET google_id=?, updated_at=datetime('now') WHERE username=?",
+                (google_id, row["username"]))
+        return row["username"]
+
+    # 3. Create new account
+    base = email.split("@")[0].lower().replace(".", "_")
+    username = base
+    counter = 1
+    while fetchone("SELECT 1 FROM users WHERE username = ?", (username,)):
+        username = f"{base}{counter}"
+        counter += 1
+
+    execute(
+        """INSERT INTO users (username, password_hash, full_name, email, google_id,
+                              plan, gcal_calendar_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (username, "", full_name, email, google_id, "starter", email),
+    )
+    logger.info("Google OAuth: new user created %s (%s)", username, email)
+    return username
+
+
 def count_non_admin_users() -> int:
-    return len(_load_users())
+    fetchone, _, _ = _db()
+    row = fetchone("SELECT COUNT(*) AS n FROM users")
+    return (row or {}).get("n", 0)
 
 
 def is_admin(username: str) -> bool:
