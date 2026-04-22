@@ -153,39 +153,97 @@
 </section>
 
 <!-- ── Pricing ── -->
-<section id="preise">
+<section id="preise" style="background:var(--bg-subtle); border-top:1px solid var(--border); border-bottom:1px solid var(--border);">
   <div class="section-inner">
     <div class="section-header reveal">
       <div class="section-label">Preise</div>
       <h2 class="section-title">Transparent. Kein Kleingedrucktes.</h2>
-      <p class="section-sub">Einmal einrichten, dauerhaft Zeit sparen. Keine versteckten Kosten.</p>
+      <p class="section-sub">Einmalige Einrichtungsgebühr + monatliche Nutzung. Jederzeit kündbar.</p>
     </div>
 
-    <div class="pricing-grid">
+    <div class="pricing-grid-3 pricing-grid">
+      <!-- Starter -->
       <div class="pricing-card reveal reveal-d1">
-        <h3>Einrichtung</h3>
-        <div class="pricing-price">499 €<span> einmalig</span></div>
-        <p class="pricing-desc">Setup, Anpassung auf Ihr Büro, Einweisung Ihres Teams.</p>
+        <div class="plan-label">Starter</div>
+        <div class="plan-setup-fee">299 € <span>Einrichtung</span></div>
+        <div class="pricing-price">49 €<span>/Monat</span></div>
+        <p class="pricing-desc">Für Einzelmakler, die sofort Zeit sparen wollen.</p>
         <ul class="pricing-features">
-          <li>Persönliche Einrichtung</li>
-          <li>Prompt-Anpassung auf Ihr Büro</li>
-          <li>Team-Einweisung (1 Std.)</li>
-          <li>Testlauf mit 3 echten Objekten</li>
+          <li>KI-Exposé-Generator</li>
+          <li>Review &amp; Freigabe-Interface</li>
+          <li>Google Sheets Integration</li>
+          <li>Google Drive Export (.docx)</li>
+          <li>E-Mail-Benachrichtigungen</li>
+          <li class="feature-disabled">Kalendersystem</li>
+          <li class="feature-disabled">Automatische Erinnerungen</li>
+          <li class="feature-disabled">WhatsApp Push</li>
+          <li class="pricing-limit">30 Exposés / Monat</li>
         </ul>
+        <a href="/signup?plan=starter" class="btn btn-outline btn-pricing">Jetzt starten</a>
       </div>
+
+      <!-- Pro (featured) -->
       <div class="pricing-card featured reveal reveal-d2">
-        <div class="pricing-badge">Beliebteste Option</div>
-        <h3>Monatliche Nutzung</h3>
-        <div class="pricing-price">149 €<span>/Monat</span></div>
-        <p class="pricing-desc">Unbegrenzte Exposés, alle Updates, Support inklusive.</p>
+        <div class="pricing-badge">⭐ Empfohlen</div>
+        <div class="plan-label">Pro</div>
+        <div class="plan-setup-fee">499 € <span>Einrichtung</span></div>
+        <div class="pricing-price">99 €<span>/Monat</span></div>
+        <p class="pricing-desc">Für aktive Makler mit vollem Workflow-Bedarf.</p>
         <ul class="pricing-features">
-          <li>Unbegrenzte Exposés</li>
-          <li>Generator + Review-Interface</li>
-          <li>Alle Objekttypen</li>
-          <li>E-Mail-Support</li>
-          <li>Monatlich kündbar</li>
+          <li>Alles aus Starter</li>
+          <li>Kalendersystem &amp; Terminverwaltung</li>
+          <li>Automatische Erinnerungs-E-Mails</li>
+          <li>WhatsApp Push-Benachrichtigungen</li>
+          <li>Google Calendar Sync</li>
+          <li>Cal.com Integration</li>
+          <li class="feature-disabled">Multi-User (bis 5)</li>
+          <li class="feature-disabled">Exposé-Tonalität anpassen</li>
+          <li class="pricing-limit">60 Exposés / Monat</li>
         </ul>
-        <a href="#kontakt" class="btn btn-primary" style="width:100%; justify-content:center;">Demo anfragen →</a>
+        <a href="/signup?plan=pro" class="btn btn-primary btn-pricing">Jetzt starten →</a>
+      </div>
+
+      <!-- Business -->
+      <div class="pricing-card reveal reveal-d3">
+        <div class="plan-label">Business</div>
+        <div class="plan-setup-fee">999 € <span>Einrichtung</span></div>
+        <div class="pricing-price">199 €<span>/Monat</span></div>
+        <p class="pricing-desc">Für Maklerbüros mit Team und hohem Volumen.</p>
+        <ul class="pricing-features">
+          <li>Alles aus Pro</li>
+          <li>Multi-User bis zu 5 Makler</li>
+          <li>Exposé-Tonalität individualisierbar</li>
+          <li>Priority Support (24h Reaktionszeit)</li>
+          <li>Dediziertes Onboarding</li>
+          <li>Team-Einweisung inkl.</li>
+          <li>Branding-Anpassung</li>
+          <li>SLA-Garantie</li>
+          <li class="pricing-limit">150 Exposés / Monat</li>
+        </ul>
+        <a href="/signup?plan=business" class="btn btn-outline btn-pricing">Demo anfragen</a>
+      </div>
+    </div>
+
+    <!-- Trust bar -->
+    <div class="trust-bar reveal">
+      <div class="trust-item">
+        <span class="trust-icon">🔒</span>
+        <span>Keine versteckten Kosten</span>
+      </div>
+      <div class="trust-divider"></div>
+      <div class="trust-item">
+        <span class="trust-icon">📅</span>
+        <span>Jederzeit monatlich kündbar</span>
+      </div>
+      <div class="trust-divider"></div>
+      <div class="trust-item">
+        <span class="trust-icon">🇩🇪</span>
+        <span>DSGVO-konforme Datenverarbeitung</span>
+      </div>
+      <div class="trust-divider"></div>
+      <div class="trust-item">
+        <span class="trust-icon">⚡</span>
+        <span>Setup in unter 48 Stunden</span>
       </div>
     </div>
   </div>

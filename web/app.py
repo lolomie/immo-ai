@@ -149,6 +149,55 @@ def impressum_page():
     return render_template("impressum.html", auth_required=False)
 
 
+@app.route("/signup")
+def signup_page():
+    from src.plans import PLANS, get_plan
+    plan_key = request.args.get("plan", "pro").lower()
+    plan = get_plan(plan_key)
+    return render_template("signup.html", plan=plan, plan_key=plan_key,
+                           all_plans=PLANS, auth_required=False)
+
+
+@app.route("/api/signup", methods=["POST"])
+@limiter.limit("5 per minute")
+def api_signup():
+    data = request.get_json() or {}
+    name     = data.get("name", "").strip()
+    email    = data.get("email", "").strip()
+    company  = data.get("company", "").strip()
+    phone    = data.get("phone", "").strip()
+    plan_key = data.get("plan", "pro").strip()
+
+    if not name or not email:
+        return jsonify({"error": "Name und E-Mail sind Pflichtfelder."}), 400
+
+    # Notify admin of new signup request
+    try:
+        from src.email_client import _build_message, _send
+        from src.plans import get_plan
+        plan = get_plan(plan_key)
+        subject = f"🆕 Demo-Anfrage: {name} — {plan['name']}-Plan"
+        body_html = f"""
+<html><body style="font-family:sans-serif;color:#1e293b;max-width:560px;margin:auto;padding:24px;">
+  <h2 style="color:#1a3a5c;">Neue Demo-Anfrage über Immo AI</h2>
+  <table style="border-collapse:collapse;width:100%;margin:16px 0;">
+    <tr><td style="padding:8px;background:#f1f5f9;font-weight:600;width:140px;">Name</td><td style="padding:8px;">{name}</td></tr>
+    <tr><td style="padding:8px;background:#f1f5f9;font-weight:600;">E-Mail</td><td style="padding:8px;">{email}</td></tr>
+    <tr><td style="padding:8px;background:#f1f5f9;font-weight:600;">Unternehmen</td><td style="padding:8px;">{company or '—'}</td></tr>
+    <tr><td style="padding:8px;background:#f1f5f9;font-weight:600;">Telefon</td><td style="padding:8px;">{phone or '—'}</td></tr>
+    <tr><td style="padding:8px;background:#f1f5f9;font-weight:600;">Gewünschter Plan</td><td style="padding:8px;font-weight:700;color:#2563eb;">{plan['name']} ({plan['monthly_price']} €/Monat)</td></tr>
+  </table>
+</body></html>"""
+        body_text = f"Demo-Anfrage\nName: {name}\nEmail: {email}\nPlan: {plan['name']}"
+        from src.config import EMAIL_FROM
+        _send(EMAIL_FROM, _build_message(EMAIL_FROM, subject, body_html, body_text))
+        app.logger.info("Signup request from %s (%s), plan=%s", name, email, plan_key)
+    except Exception as e:
+        app.logger.error("Signup notification failed: %s", e)
+
+    return jsonify({"ok": True, "message": "Vielen Dank! Wir melden uns innerhalb von 24 Stunden."})
+
+
 @app.route("/admin/users")
 @admin_required
 def admin_users_page():
