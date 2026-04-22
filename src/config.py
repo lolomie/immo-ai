@@ -45,6 +45,9 @@ CALCOM_API_KEY = os.getenv("CALCOM_API_KEY", "")
 CALCOM_EVENT_TYPE_ID = os.getenv("CALCOM_EVENT_TYPE_ID", "")
 CALCOM_BASE_URL = os.getenv("CALCOM_BASE_URL", "https://api.cal.com/v2")
 
+# ── Admin ─────────────────────────────────────────────────────────────────────
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "")
+
 # ── Email (SMTP) ──────────────────────────────────────────────────────────────
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))

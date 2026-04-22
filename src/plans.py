@@ -4,6 +4,27 @@ Used for feature gating, limit enforcement, and pricing display.
 """
 
 PLANS: dict = {
+    "admin": {
+        "name": "Admin",
+        "setup_fee": 0,
+        "monthly_price": 0,
+        "monthly_expose_limit": 999999,
+        "max_users": 999999,
+        "priority": 99,
+        "features": {
+            "generator":          True,
+            "sheets_integration": True,
+            "review_interface":   True,
+            "calendar":           True,
+            "reminders":          True,
+            "whatsapp":           True,
+            "multi_user":         True,
+            "custom_tone":        True,
+            "priority_support":   True,
+            "drive_export":       True,
+            "email_notifications":True,
+        },
+    },
     "starter": {
         "name": "Starter",
         "setup_fee": 299,
@@ -77,11 +98,15 @@ def get_plan(plan_key: str) -> dict:
 
 
 def has_feature(plan_key: str, feature: str) -> bool:
+    if plan_key == "admin":
+        return True
     plan = get_plan(plan_key)
     return bool(plan["features"].get(feature, False))
 
 
 def get_monthly_limit(plan_key: str) -> int:
+    if plan_key == "admin":
+        return 999999
     return get_plan(plan_key)["monthly_expose_limit"]
 
 

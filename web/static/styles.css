@@ -880,12 +880,56 @@ footer a:hover { color: #fff; text-decoration: none; }
 @keyframes fadeOut {
   to { opacity: 0; transform: scale(0.96) translateY(-6px); }
 }
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
 @keyframes shimmer {
   0% { background-position: -200% center; }
   100% { background-position: 200% center; }
 }
+
+/* ── Pricing extended ── */
+.pricing-grid-3 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); max-width: 1060px; }
+.plan-label {
+  font-size: .7rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .12em; color: var(--slate); margin-bottom: .5rem;
+}
+.plan-setup-fee {
+  font-size: .9rem; color: var(--slate); margin-bottom: .25rem; font-weight: 500;
+}
+.plan-setup-fee span { font-size: .8rem; font-weight: 400; }
+.btn-pricing {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; padding: .75rem; font-size: .9375rem; font-weight: 600;
+  border-radius: var(--radius); text-decoration: none; margin-top: auto;
+  transition: all var(--transition);
+}
+.btn-pricing:hover { transform: translateY(-2px); text-decoration: none; }
+.pricing-features .feature-disabled {
+  color: var(--slate-light);
+  text-decoration: line-through;
+}
+.pricing-features .feature-disabled::before { content: "✗"; color: var(--slate-light); }
+.pricing-features .pricing-limit {
+  font-size: .8rem; color: var(--blue); font-weight: 600;
+  margin-top: .25rem; list-style: none;
+}
+.pricing-features .pricing-limit::before { content: none; }
+
+/* ── Trust bar ── */
+.trust-bar {
+  display: flex; align-items: center; justify-content: center;
+  flex-wrap: wrap; gap: 1rem; margin-top: 3rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow);
+}
+.trust-item { display: flex; align-items: center; gap: .5rem; font-size: .875rem; font-weight: 500; color: var(--navy-700); }
+.trust-icon { font-size: 1.1rem; }
+.trust-divider { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
 
 /* ── Print ── */
 @media print {

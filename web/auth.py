@@ -71,7 +71,7 @@ def check_credentials(username: str, password: str) -> bool:
 
 def get_user_plan(username: str) -> str:
     if username == ADMIN_USER:
-        return os.environ.get("ADMIN_PLAN", "pro").lower()
+        return os.environ.get("ADMIN_PLAN", "admin").lower()
     return _get_user_record(username).get("plan", "starter").lower()
 
 
@@ -79,6 +79,12 @@ def get_user_phone(username: str) -> str:
     if username == ADMIN_USER:
         return os.environ.get("ADMIN_PHONE", "")
     return _get_user_record(username).get("phone", "")
+
+
+def get_user_email(username: str) -> str:
+    if username == ADMIN_USER:
+        return os.environ.get("ADMIN_EMAIL", os.environ.get("SMTP_USER", ""))
+    return _get_user_record(username).get("email", "")
 
 
 def set_user_plan(username: str, plan: str) -> None:
@@ -99,22 +105,36 @@ def set_user_plan(username: str, plan: str) -> None:
 def set_user_phone(username: str, phone: str) -> None:
     users = _load_users()
     if username == ADMIN_USER:
-        # stored via env only — nothing to persist here
         return
     if username not in users:
         raise ValueError("Benutzer nicht gefunden.")
     rec = users[username]
     if isinstance(rec, str):
-        rec = {"hash": rec, "plan": "starter", "phone": phone}
+        rec = {"hash": rec, "plan": "starter", "phone": phone, "email": ""}
     else:
         rec["phone"] = phone
     users[username] = rec
     _save_users(users)
 
 
+def set_user_email(username: str, email: str) -> None:
+    if username == ADMIN_USER:
+        raise ValueError("Admin-E-Mail über ADMIN_EMAIL in .env setzen.")
+    users = _load_users()
+    if username not in users:
+        raise ValueError("Benutzer nicht gefunden.")
+    rec = users[username]
+    if isinstance(rec, str):
+        rec = {"hash": rec, "plan": "starter", "phone": "", "email": email}
+    else:
+        rec["email"] = email
+    users[username] = rec
+    _save_users(users)
+
+
 # ── User management ───────────────────────────────────────────────────────────
 
-def add_user(username: str, password: str, plan: str = "starter", phone: str = "") -> None:
+def add_user(username: str, password: str, plan: str = "starter", phone: str = "", email: str = "") -> None:
     if not username or not password:
         raise ValueError("Benutzername und Passwort dürfen nicht leer sein.")
     if username == ADMIN_USER:
@@ -123,9 +143,9 @@ def add_user(username: str, password: str, plan: str = "starter", phone: str = "
         raise ValueError("Passwort muss mindestens 8 Zeichen haben.")
     users = _load_users()
     hashed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode()
-    users[username] = {"hash": hashed, "plan": plan, "phone": phone}
+    users[username] = {"hash": hashed, "plan": plan, "phone": phone, "email": email}
     _save_users(users)
-    logger.info("User added: %s (plan=%s)", username, plan)
+    logger.info("User added: %s (plan=%s, email=%s)", username, plan, email)
 
 
 def delete_user(username: str) -> None:
@@ -150,6 +170,7 @@ def list_users() -> list:
             "role": "agent",
             "plan": rec.get("plan", "starter"),
             "phone": rec.get("phone", ""),
+            "email": rec.get("email", ""),
         })
     return result
 

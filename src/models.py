@@ -26,5 +26,6 @@ class JobResult(BaseModel):
     expose_text: str
     hallucination_detected: bool
     hallucination_details: str   # empty string if none
+    created_by: Optional[str] = None   # username of the generating agent
     reviewed_by: Optional[str] = None
     review_note: Optional[str] = None

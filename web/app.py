@@ -23,18 +23,28 @@ from src.usage_tracker import check_limit, increment, get_usage
 try:
     from .auth import (api_login_required, check_credentials, login_required,
                        admin_required, add_user, delete_user, list_users,
-                       get_user_plan, get_user_phone, set_user_plan,
-                       set_user_phone, count_non_admin_users)
+                       get_user_plan, get_user_phone, get_user_email,
+                       set_user_plan, set_user_phone, set_user_email,
+                       count_non_admin_users)
 except ImportError:
     from auth import (api_login_required, check_credentials, login_required,
                       admin_required, add_user, delete_user, list_users,
-                      get_user_plan, get_user_phone, set_user_plan,
-                      set_user_phone, count_non_admin_users)
+                      get_user_plan, get_user_phone, get_user_email,
+                      set_user_plan, set_user_phone, set_user_email,
+                      count_non_admin_users)
 
+
+def _is_admin() -> bool:
+    from auth import is_admin
+    return is_admin(session.get("username", ""))
 
 def _plan() -> str:
-    """Return the current user's plan key from session."""
-    return session.get("plan", "starter")
+    if _is_admin():
+        return "admin"
+    username = session.get("username", "")
+    if username:
+        return get_user_plan(username)
+    return "starter"
 
 
 def _username() -> str:
@@ -238,11 +248,9 @@ def api_signup():
 @app.route("/admin/users")
 @admin_required
 def admin_users_page():
-    plan = _plan()
     users = list_users()
-    can_add = has_feature(plan, "multi_user")
     return render_template("admin_users.html", users=users, auth_required=False,
-                           user_plan=plan, can_add_users=can_add,
+                           can_add_users=True,
                            all_plans=PLANS)
 
 
@@ -264,10 +272,30 @@ def api_admin_add_user():
     password = data.get("password", "").strip()
     plan_key = data.get("plan", "starter").strip()
     phone    = data.get("phone", "").strip()
+    email    = data.get("email", "").strip()
     try:
-        add_user(username, password, plan=plan_key, phone=phone)
+        add_user(username, password, plan=plan_key, phone=phone, email=email)
         app.logger.info("User created: %s (plan=%s) by %s", username, plan_key, _username())
         return jsonify({"ok": True, "username": username})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route("/api/admin/users/<username>", methods=["PATCH"])
+@admin_required
+def api_admin_patch_user(username):
+    data = request.get_json() or {}
+    try:
+        if "plan" in data:
+            plan_key = data["plan"].strip().lower()
+            if plan_key not in PLANS:
+                return jsonify({"error": f"Unbekannter Plan: {plan_key}"}), 400
+            set_user_plan(username, plan_key)
+        if "phone" in data:
+            set_user_phone(username, data["phone"].strip())
+        if "email" in data:
+            set_user_email(username, data["email"].strip())
+        return jsonify({"ok": True})
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 
@@ -479,6 +507,7 @@ def api_generate_stream():
                 expose_text=expose_text,
                 hallucination_detected=validation["hallucinated"],
                 hallucination_details=validation["details"],
+                created_by=username,
             )
             _save_job(job)
             increment(username)
@@ -613,43 +642,42 @@ def api_review(job_id):
         job["reviewed_by"] = reviewer
         job["review_note"] = None
 
-        # Generate .docx + upload to Drive + send email in background
-        def _deliver():
+        # Find the email of whoever created/owns this job
+        from src.config import SMTP_USER, SMTP_PASSWORD
+        creator = job.get("created_by") or ""
+        agent_email = get_user_email(creator) if creator else ""
+        if not agent_email:
+            # fallback: email of the reviewer if it looks like an email
+            agent_email = reviewer if "@" in reviewer else ""
+        email_configured = bool(SMTP_USER and SMTP_PASSWORD)
+
+        # Try to send notification email
+        email_sent = False
+        email_error = ""
+        if email_configured and agent_email:
             try:
-                from src.docx_creator import create_expose_docx_bytes, expose_filename
-                from src.drive_client import upload_docx_bytes
                 from src.email_client import send_expose_ready
-                from src.models import PropertyInput
-
-                prop = PropertyInput(
-                    property_id=job.get("property_id", job_id),
-                    address=job.get("property_id", ""),
-                    city="", zip_code="", property_type="Wohnung",
-                    size_sqm=0, rooms=0,
-                )
-                docx_bytes = create_expose_docx_bytes(prop, job["expose_text"], reviewer)
-                fname = expose_filename(prop)
-                doc_url = upload_docx_bytes(docx_bytes, fname)
-
-                # save URL back to job file
-                job["doc_url"] = doc_url
-                with open(path, "w", encoding="utf-8") as _f:
-                    json.dump(job, _f, ensure_ascii=False, indent=2)
-
-                # notify reviewer by email
                 send_expose_ready(
-                    agent_email=reviewer if "@" in reviewer else "",
+                    agent_email=agent_email,
                     property_address=job.get("property_id", job_id),
                     property_id=job.get("property_id", job_id),
-                    doc_url=doc_url,
+                    doc_url="",
                     job_id=job_id,
                 )
-                app.logger.info("Approved job %s delivered: %s", job_id, doc_url)
+                email_sent = True
+                app.logger.info("Approval email sent to %s for job %s", agent_email, job_id)
             except Exception as e:
-                app.logger.error("Delivery after approval failed for %s: %s", job_id, e, exc_info=True)
+                email_error = str(e)
+                app.logger.error("Email send failed for job %s: %s", job_id, e)
+        else:
+            if not email_configured:
+                email_error = "SMTP nicht konfiguriert (SMTP_USER/SMTP_PASSWORD in .env setzen)"
+            elif not agent_email:
+                email_error = "Keine Admin-E-Mail konfiguriert (ADMIN_EMAIL in .env setzen)"
 
-        import threading
-        threading.Thread(target=_deliver, daemon=True).start()
+        export_path = path.replace(".json", "_approved.txt")
+        with open(export_path, "w", encoding="utf-8") as f:
+            f.write(job["expose_text"])
 
     elif action == "reject":
         job["status"] = "rejected"
@@ -662,7 +690,13 @@ def api_review(job_id):
         json.dump(job, f, ensure_ascii=False, indent=2)
 
     app.logger.info("Job %s %sd by %s", job_id, action, reviewer)
-    return jsonify({"ok": True, "status": job["status"]})
+
+    response = {"ok": True, "status": job["status"]}
+    if action == "approve":
+        response["email_sent"] = email_sent
+        response["email_to"] = agent_email if email_sent else ""
+        response["email_error"] = email_error
+    return jsonify(response)
 
 
 # ── Automation webhook ────────────────────────────────────────────────────────

@@ -3,70 +3,115 @@
 {% block content %}
 <div class="app-header">
   <h1>Benutzerverwaltung</h1>
-  <p>Makler verwalten — <strong>{{ user_plan|title }}-Plan</strong></p>
+  <p>Makler anlegen, verwalten und Pläne zuweisen.</p>
 </div>
 <div class="app-body">
 
   {% if not can_add_users %}
-  <div class="alert alert-warning" style="margin-bottom:1.5rem;display:flex;align-items:center;gap:.75rem;">
-    🔒 <span>Multi-User erfordert den <strong>Business-Plan</strong>.
-    <a href="/signup?plan=business" style="color:var(--amber);font-weight:700;">Jetzt upgraden →</a></span>
+  <div class="alert alert-warning" style="margin-bottom:1.5rem;">
+    🔒 Multi-User erfordert den <strong>Business-Plan</strong>.
+    <a href="/signup?plan=business" style="color:var(--amber);font-weight:700;">Jetzt upgraden →</a>
   </div>
   {% endif %}
 
-  <div class="card" style="margin-bottom:2rem;padding:1.5rem;{% if not can_add_users %}opacity:.5;pointer-events:none;{% endif %}">
-    <h3 style="margin-bottom:1rem;font-size:1rem;font-weight:700;color:var(--navy-700);">Neuen Benutzer hinzufügen</h3>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.875rem;align-items:flex-end;">
-      <div class="field" style="margin:0;"><label>Benutzername</label><input type="text" id="newUsername" placeholder="maria.mueller"></div>
-      <div class="field" style="margin:0;"><label>Passwort (min. 8 Zeichen)</label><input type="password" id="newPassword" placeholder="Sicheres Passwort"></div>
-      <div class="field" style="margin:0;"><label>Plan</label>
+  <!-- Add user form -->
+  <div class="card" style="margin-bottom:2rem; {% if not can_add_users %}opacity:.5;pointer-events:none;{% endif %}">
+    <h3 style="margin-bottom:1.25rem;font-size:1rem;font-weight:700;color:var(--navy);">Neuen Benutzer hinzufügen</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.875rem;margin-bottom:.875rem;">
+      <div class="field">
+        <label>Benutzername</label>
+        <input type="text" id="newUsername" placeholder="maria.mueller">
+      </div>
+      <div class="field">
+        <label>E-Mail <span class="opt">für Benachrichtigungen</span></label>
+        <input type="email" id="newEmail" placeholder="maria@makler.de">
+      </div>
+      <div class="field">
+        <label>Passwort <span class="opt">min. 8 Zeichen</span></label>
+        <input type="password" id="newPassword" placeholder="Sicheres Passwort">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:.875rem;align-items:flex-end;">
+      <div class="field" style="margin:0;">
+        <label>Plan</label>
         <select id="newPlan">
-          {% for key, p in all_plans.items() %}<option value="{{ key }}" {% if key == 'starter' %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+          {% for key, p in all_plans.items() %}
+            {% if key != 'admin' %}
+            <option value="{{ key }}" {% if key == 'starter' %}selected{% endif %}>{{ p.name }}</option>
+            {% endif %}
+          {% endfor %}
         </select>
       </div>
-      <button class="btn btn-primary" onclick="addUser()" style="margin-bottom:0;">+ Hinzufügen</button>
-    </div>
-    <div class="field" style="margin-top:.875rem;max-width:300px;">
-      <label>WhatsApp-Nummer <span class="opt">optional</span></label>
-      <input type="tel" id="newPhone" placeholder="+49 170 123 4567">
+      <div class="field" style="margin:0;">
+        <label>WhatsApp <span class="opt">optional</span></label>
+        <input type="tel" id="newPhone" placeholder="+49 170 123 4567">
+      </div>
+      <button class="btn btn-primary" onclick="addUser()">+ Hinzufügen</button>
     </div>
     <div id="addError" class="alert alert-error" style="display:none;margin-top:1rem;"></div>
     <div id="addSuccess" class="alert alert-success" style="display:none;margin-top:1rem;"></div>
   </div>
 
+  <!-- User table -->
   <div class="card" style="padding:1.5rem;">
-    <h3 style="margin-bottom:1rem;font-size:1rem;font-weight:700;color:var(--navy-700);">Aktive Benutzer</h3>
+    <h3 style="margin-bottom:1.25rem;font-size:1rem;font-weight:700;color:var(--navy);">Aktive Benutzer ({{ users|length }})</h3>
     <table style="width:100%;border-collapse:collapse;">
-      <thead><tr style="border-bottom:2px solid var(--border);">
-        <th style="text-align:left;padding:8px 12px;font-size:.8125rem;color:var(--slate);">Benutzer</th>
-        <th style="text-align:left;padding:8px 12px;font-size:.8125rem;color:var(--slate);">Plan</th>
-        <th style="text-align:left;padding:8px 12px;font-size:.8125rem;color:var(--slate);">WhatsApp</th>
-        <th style="text-align:left;padding:8px 12px;font-size:.8125rem;color:var(--slate);">Rolle</th>
-        <th style="padding:8px 12px;"></th>
-      </tr></thead>
+      <thead>
+        <tr style="border-bottom:2px solid var(--border);">
+          <th style="text-align:left;padding:8px 12px;font-size:.8125rem;color:var(--slate);">Benutzer</th>
+          <th style="text-align:left;padding:8px 12px;font-size:.8125rem;color:var(--slate);">E-Mail</th>
+          <th style="text-align:left;padding:8px 12px;font-size:.8125rem;color:var(--slate);">Plan</th>
+          <th style="text-align:left;padding:8px 12px;font-size:.8125rem;color:var(--slate);">WhatsApp</th>
+          <th style="text-align:left;padding:8px 12px;font-size:.8125rem;color:var(--slate);">Rolle</th>
+          <th style="padding:8px 12px;"></th>
+        </tr>
+      </thead>
       <tbody id="userTableBody">
         {% for user in users %}
         <tr id="row-{{ user.username }}" style="border-bottom:1px solid var(--border);">
-          <td style="padding:10px 12px;font-weight:600;">{{ user.username }}</td>
+          <td style="padding:10px 12px;font-weight:600;color:var(--navy);">{{ user.username }}</td>
           <td style="padding:10px 12px;">
             {% if user.role == 'admin' %}
-            <span class="badge badge-success">{{ user.plan|title }}</span>
+              <span style="font-size:.8125rem;color:var(--slate-light);">{{ user.email or 'via .env (ADMIN_EMAIL)' }}</span>
             {% else %}
-            <select onchange="setPlan('{{ user.username }}', this.value)" style="padding:.3rem .6rem;border:1.5px solid var(--border);border-radius:6px;font-size:.8125rem;">
-              {% for key, p in all_plans.items() %}<option value="{{ key }}" {% if key == user.plan %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
-            </select>
+              <input type="email" value="{{ user.email or '' }}" placeholder="email@domain.de"
+                style="padding:.3rem .6rem;border:1.5px solid var(--border);border-radius:6px;font-size:.8125rem;width:190px;"
+                onblur="setEmail('{{ user.username }}', this.value)">
+            {% endif %}
+          </td>
+          <td style="padding:10px 12px;">
+            {% if user.role == 'admin' %}
+              <span class="badge badge-success">{{ user.plan|title }}</span>
+            {% else %}
+              <select onchange="setPlan('{{ user.username }}', this.value)"
+                style="padding:.3rem .6rem;border:1.5px solid var(--border);border-radius:6px;font-size:.8125rem;">
+                {% for key, p in all_plans.items() %}
+                  {% if key != 'admin' %}
+                  <option value="{{ key }}" {% if key == user.plan %}selected{% endif %}>{{ p.name }}</option>
+                  {% endif %}
+                {% endfor %}
+              </select>
             {% endif %}
           </td>
           <td style="padding:10px 12px;">
             {% if user.role != 'admin' %}
-            <input type="tel" value="{{ user.phone }}" placeholder="+49…" style="padding:.3rem .6rem;border:1.5px solid var(--border);border-radius:6px;font-size:.8125rem;width:140px;" onblur="setPhone('{{ user.username }}', this.value)">
-            {% else %}<span style="color:var(--slate-light);font-size:.8125rem;">via .env</span>{% endif %}
+              <input type="tel" value="{{ user.phone or '' }}" placeholder="+49…"
+                style="padding:.3rem .6rem;border:1.5px solid var(--border);border-radius:6px;font-size:.8125rem;width:140px;"
+                onblur="setPhone('{{ user.username }}', this.value)">
+            {% else %}
+              <span style="color:var(--slate-light);font-size:.8125rem;">via .env</span>
+            {% endif %}
           </td>
           <td style="padding:10px 12px;">
-            <span class="badge {% if user.role == 'admin' %}badge-success{% else %}badge-pending{% endif %}">{{ 'Admin' if user.role == 'admin' else 'Makler' }}</span>
+            <span class="badge {% if user.role == 'admin' %}badge-success{% else %}badge-pending{% endif %}">
+              {{ 'Admin' if user.role == 'admin' else 'Makler' }}
+            </span>
           </td>
           <td style="padding:10px 12px;text-align:right;">
-            {% if user.role != 'admin' %}<button class="btn btn-danger btn-sm" onclick="deleteUser('{{ user.username }}');">Löschen</button>{% endif %}
+            {% if user.role != 'admin' %}
+              <button class="btn btn-outline btn-sm" style="color:var(--red);border-color:var(--red-border);"
+                onclick="deleteUser('{{ user.username }}')">Löschen</button>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}
@@ -74,37 +119,78 @@
     </table>
   </div>
 </div>
+
 <script>
 async function addUser() {
-  const username = document.getElementById("newUsername").value.trim();
-  const password = document.getElementById("newPassword").value.trim();
-  const plan = document.getElementById("newPlan").value;
-  const phone = document.getElementById("newPhone").value.trim();
-  const errEl = document.getElementById("addError");
-  const okEl  = document.getElementById("addSuccess");
-  errEl.style.display = "none"; okEl.style.display = "none";
-  if (!username || !password) { errEl.textContent = "Bitte Benutzername und Passwort eingeben."; errEl.style.display = "block"; return; }
-  const res  = await fetch("/api/admin/users", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({username, password, plan, phone}) });
+  const username = document.getElementById('newUsername').value.trim();
+  const email    = document.getElementById('newEmail').value.trim();
+  const password = document.getElementById('newPassword').value.trim();
+  const plan     = document.getElementById('newPlan').value;
+  const phone    = document.getElementById('newPhone').value.trim();
+  const errEl    = document.getElementById('addError');
+  const okEl     = document.getElementById('addSuccess');
+  errEl.style.display = 'none';
+  okEl.style.display  = 'none';
+
+  if (!username || !password) {
+    errEl.textContent = 'Benutzername und Passwort sind Pflichtfelder.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const res  = await fetch('/api/admin/users', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({username, email, password, plan, phone}),
+  });
   const data = await res.json();
-  if (!res.ok) { errEl.textContent = data.error || "Fehler"; errEl.style.display = "block"; return; }
-  okEl.textContent = ;
-  okEl.style.display = "block";
-  ["newUsername","newPassword","newPhone"].forEach(id => document.getElementById(id).value = "");
+  if (!res.ok) {
+    errEl.textContent = data.error || 'Fehler';
+    errEl.style.display = 'block';
+    return;
+  }
+  okEl.textContent = `✓ Benutzer "${username}" wurde angelegt.`;
+  okEl.style.display = 'block';
+  ['newUsername','newEmail','newPassword','newPhone'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  setTimeout(() => location.reload(), 1200);
 }
-async function deleteUser(u) {
-  if (!confirm()) return;
-  const res = await fetch(, {method:"DELETE"});
+
+async function deleteUser(username) {
+  if (!confirm(`Benutzer "${username}" wirklich löschen?`)) return;
+  const res  = await fetch(`/api/admin/users/${encodeURIComponent(username)}`, {method: 'DELETE'});
   const data = await res.json();
-  if (!res.ok) { alert(data.error||"Fehler"); return; }
-  document.getElementById()?.remove();
+  if (!res.ok) { alert(data.error || 'Fehler'); return; }
+  document.getElementById(`row-${username}`)?.remove();
 }
-async function setPlan(u, plan) {
-  const res = await fetch(, {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({plan})});
+
+async function setPlan(username, plan) {
+  const res  = await fetch(`/api/admin/users/${encodeURIComponent(username)}`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({plan}),
+  });
   const data = await res.json();
-  if (!res.ok) alert(data.error || "Plan-Änderung fehlgeschlagen");
+  if (!res.ok) alert(data.error || 'Plan-Änderung fehlgeschlagen');
 }
-async function setPhone(u, phone) {
-  await fetch(, {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({phone})});
+
+async function setPhone(username, phone) {
+  await fetch(`/api/admin/users/${encodeURIComponent(username)}`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({phone}),
+  });
+}
+
+async function setEmail(username, email) {
+  const res = await fetch(`/api/admin/users/${encodeURIComponent(username)}`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({email}),
+  });
+  const data = await res.json();
+  if (!res.ok) alert(data.error || 'E-Mail-Änderung fehlgeschlagen');
 }
 </script>
 {% endblock %}
