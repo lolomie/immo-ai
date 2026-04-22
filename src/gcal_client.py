@@ -92,7 +92,7 @@ def create_event(
     created = service.events().insert(
         calendarId=GCAL_CALENDAR_ID,
         body=event_body,
-        sendUpdates="all",  # sends email invites to attendees
+        sendUpdates="none",
     ).execute()
 
     event_id = created["id"]
