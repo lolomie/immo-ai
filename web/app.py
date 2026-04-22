@@ -159,14 +159,16 @@ _GOOGLE_TOKEN_URL   = "https://oauth2.googleapis.com/token"
 _GOOGLE_USERINFO_URL= "https://www.googleapis.com/oauth2/v2/userinfo"
 
 def _google_client_id():
-    return os.environ.get("GOOGLE_CLIENT_ID", "")
+    from src.config import GOOGLE_CLIENT_ID
+    return GOOGLE_CLIENT_ID
 
 def _google_client_secret():
-    return os.environ.get("GOOGLE_CLIENT_SECRET", "")
+    from src.config import GOOGLE_CLIENT_SECRET
+    return GOOGLE_CLIENT_SECRET
 
 def _google_redirect_uri():
-    base = os.environ.get("APP_URL", "http://127.0.0.1:5000").rstrip("/")
-    return f"{base}/auth/google/callback"
+    from src.config import APP_URL
+    return APP_URL.rstrip("/") + "/auth/google/callback"
 
 
 @app.route("/auth/google")
