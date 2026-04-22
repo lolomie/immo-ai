@@ -1,86 +1,107 @@
 {% extends "base.html" %}
-{% block title %}Immo AI — Exposés in Sekunden{% endblock %}
+{% block title %}Immo AI — KI-Automatisierung für Immobilienmakler{% endblock %}
 
 {% block content %}
 
 <!-- ── Hero ── -->
 <section class="hero">
   <div class="hero-glow"></div>
-  <div class="hero-badge">KI-gestützte Exposé-Generierung</div>
-  <h1>Exposés schreiben<br>sich <em>von allein.</em></h1>
+
+  <div class="hero-badge">
+    <span class="hero-badge-dot"></span>
+    Speziell für Immobilienmakler entwickelt
+  </div>
+
+  <h1>Exposés, Termine, Leads —<br><em>automatisiert.</em></h1>
+
   <p>
-    Immo AI verwandelt Ihre Objektdaten in Sekunden in professionelle Exposés —
-    automatisch geprüft, niemals veröffentlicht ohne Ihre Freigabe.
+    Immo AI übernimmt die Routinearbeit Ihres Büros.
+    Exposés in 60 Sekunden, Terminchaos beseitigt, Leads strukturiert —
+    damit Sie sich auf das konzentrieren, was wirklich Umsatz bringt.
   </p>
+
   <div class="hero-actions">
-    <a href="/generate" class="btn btn-primary btn-lg">Jetzt ausprobieren →</a>
-    <a href="#wie-es-funktioniert" class="btn btn-outline-white btn-lg">So funktioniert's</a>
+    <a href="/signup?plan=pro" class="btn btn-primary btn-lg hero-cta">
+      Jetzt kostenlos starten →
+    </a>
+    <a href="#wie-es-funktioniert" class="btn btn-outline-white btn-lg">
+      So funktioniert's
+    </a>
+  </div>
+
+  <div class="hero-trust">
+    <span>🔒 Kein Setup-Risiko</span>
+    <span class="hero-trust-dot">·</span>
+    <span>📅 Jederzeit kündbar</span>
+    <span class="hero-trust-dot">·</span>
+    <span>🇩🇪 DSGVO-konform</span>
   </div>
 </section>
 
-<!-- ── Stats ── -->
+<!-- ── Stats bar ── -->
 <div class="stats-bar">
   <div class="stat">
-    <div class="stat-value" data-count="90" data-suffix="%">90%</div>
-    <div class="stat-label">Zeitersparnis pro Exposé</div>
+    <div class="stat-value" data-count="4" data-suffix="–8h">4–8h</div>
+    <div class="stat-label">Zeitersparnis pro Woche</div>
   </div>
   <div class="stat">
-    <div class="stat-value" data-count="60" data-suffix="s" data-prefix="< ">&lt; 60s</div>
-    <div class="stat-label">Bis zum fertigen Entwurf</div>
+    <div class="stat-value" data-count="60" data-suffix="s" data-prefix="< ">&lt;60s</div>
+    <div class="stat-label">Bis zum fertigen Exposé</div>
   </div>
   <div class="stat">
-    <div class="stat-value" data-count="100" data-suffix="%">100%</div>
-    <div class="stat-label">Freigabe-Kontrolle</div>
+    <div class="stat-value" data-count="2500" data-prefix="bis " data-suffix="€">bis 2.500€</div>
+    <div class="stat-label">Monatliche Ersparnis</div>
   </div>
   <div class="stat">
-    <div class="stat-value" data-count="0">0</div>
-    <div class="stat-label">Auto-Veröffentlichungen</div>
+    <div class="stat-value" data-count="0" data-suffix="€">0€</div>
+    <div class="stat-label">Einrichtungsgebühr</div>
   </div>
 </div>
 
 <!-- ── Problem ── -->
-<section class="problem">
+<section class="problem" id="problem">
   <div class="section-inner">
     <div class="section-header reveal">
       <div class="section-label">Das Problem</div>
-      <h2 class="section-title">15 Stunden pro Monat — nur für Texte.</h2>
+      <h2 class="section-title">Makler verbringen zu viel Zeit mit Arbeit, die kein Kunde sieht.</h2>
     </div>
 
     <div class="problem-highlight reveal">
       Ein professionelles Exposé kostet Sie <strong>30–60 Minuten</strong>.
-      Bei 20 Objekten im Monat sind das über <strong>15 Arbeitsstunden</strong> —
-      Zeit, die Sie für Besichtigungen, Verhandlungen und neue Abschlüsse brauchen.
+      20 Objekte im Monat? Das sind <strong>über 15 Arbeitsstunden</strong> — nur für Texte.
+      Dazu Terminchaos, unstrukturierte Anfragen und manuelle Nachverfolgung.
+      <strong>Ihre Konkurrenz nutzt diese Zeit anders.</strong>
     </div>
 
     <div class="problem-cards">
       <div class="problem-card reveal reveal-d1">
         <div class="problem-card-icon">⏱</div>
         <h3>Schreibarbeit frisst Verkaufszeit</h3>
-        <p>Jede Stunde am Text ist eine Stunde weniger am Markt. Ihre Konkurrenz schlägt bereits zu.</p>
+        <p>Jede Stunde am Exposé ist eine Stunde weniger für Besichtigungen, Verhandlungen und Abschlüsse.</p>
       </div>
       <div class="problem-card reveal reveal-d2">
-        <div class="problem-card-icon">📉</div>
-        <h3>Inkonsistente Qualität</h3>
-        <p>Je nach Tagesform, Mitarbeiter und Zeitdruck entstehen Texte, die nicht Ihrem Standard entsprechen.</p>
+        <div class="problem-card-icon">📅</div>
+        <h3>Terminchaos kostet Kunden</h3>
+        <p>Besichtigungen über WhatsApp, E-Mail und Notizzettel. Doppelbuchungen. Verlorene Anfragen.</p>
       </div>
       <div class="problem-card reveal reveal-d3">
-        <div class="problem-card-icon">😓</div>
-        <h3>Teamüberlastung</h3>
-        <p>Neue Objekte stapeln sich. Mitarbeiter sind überlastet. Exposés werden zur Pflicht, nicht zur Chance.</p>
+        <div class="problem-card-icon">📉</div>
+        <h3>Inkonsistente Qualität</h3>
+        <p>Je nach Tagesform und Zeitdruck entstehen Texte, die nicht Ihrem Standard entsprechen.</p>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ── How it works ── -->
+<!-- ── Solution / How it works ── -->
 <section id="wie-es-funktioniert">
   <div class="section-inner">
     <div class="section-header reveal">
-      <div class="section-label">So einfach geht's</div>
+      <div class="section-label">Die Lösung</div>
       <h2 class="section-title">Drei Schritte. Fertig.</h2>
       <p class="section-sub">
         Kein Schreiben. Kein Raten. Kein Risiko —
-        denn kein Exposé verlässt das System ohne Ihre Unterschrift.
+        denn kein Exposé verlässt das System ohne Ihre Freigabe.
       </p>
     </div>
 
@@ -89,21 +110,69 @@
         <div class="step-num">1</div>
         <div class="step-content">
           <h3>Objektdaten eingeben</h3>
-          <p>Adresse, Größe, Zimmer, Preis — das, was Sie ohnehin kennen. Fertig in unter zwei Minuten.</p>
+          <p>Adresse, Größe, Zimmer, Preis — in unter 2 Minuten. Das, was Sie ohnehin kennen.</p>
         </div>
       </div>
       <div class="step reveal reveal-d2">
         <div class="step-num">2</div>
         <div class="step-content">
-          <h3>Exposé wird generiert & geprüft</h3>
-          <p>Immo AI erstellt den Text und prüft ihn automatisch auf Fehler und erfundene Angaben.</p>
+          <h3>KI generiert & prüft</h3>
+          <p>Immo AI erstellt den Text in Sekunden und prüft ihn automatisch auf Fehler und Halluzinationen.</p>
         </div>
       </div>
       <div class="step reveal reveal-d3">
         <div class="step-num">3</div>
         <div class="step-content">
           <h3>Freigabe mit einem Klick</h3>
-          <p>Sie lesen, prüfen, und geben frei — oder lehnen ab. Erst dann verlässt der Text das System.</p>
+          <p>Sie lesen, prüfen und geben frei. Erst dann verlässt der Text das System. Immer.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── ROI Section ── -->
+<section class="roi-section">
+  <div class="section-inner">
+    <div class="roi-grid reveal">
+      <div class="roi-text">
+        <div class="section-label">Return on Investment</div>
+        <h2 class="section-title">Der Plan bezahlt sich in wenigen Tagen.</h2>
+        <p style="color:var(--slate); line-height:1.75; margin-bottom:1.5rem;">
+          Ein Makler spart durch Immo AI realistisch <strong>4–8 Stunden pro Woche</strong> an Routinearbeit.
+          Bei einem durchschnittlichen Stundenwert von <strong>80 €</strong> entspricht das einer monatlichen
+          Ersparnis von <strong>bis zu 2.500 €</strong>.
+        </p>
+        <p style="color:var(--slate); line-height:1.75;">
+          Selbst der Professional-Plan für 599 €/Monat amortisiert sich damit
+          innerhalb von <strong>weniger als einer Woche</strong>.
+          Der Rest ist reiner Gewinn.
+        </p>
+      </div>
+      <div class="roi-calc">
+        <div class="roi-calc-inner">
+          <div class="roi-calc-title">ROI-Rechnung</div>
+          <div class="roi-row">
+            <span>Zeitersparnis / Woche</span>
+            <strong>4–8 Stunden</strong>
+          </div>
+          <div class="roi-row">
+            <span>Ihr Stundenwert</span>
+            <strong>80 €</strong>
+          </div>
+          <div class="roi-row">
+            <span>Monatliche Ersparnis</span>
+            <strong>1.280–2.560 €</strong>
+          </div>
+          <div class="roi-divider"></div>
+          <div class="roi-row roi-row-highlight">
+            <span>Professional-Plan</span>
+            <strong>599 €/Monat</strong>
+          </div>
+          <div class="roi-result">
+            <div class="roi-result-label">Ihr monatlicher Nettogewinn</div>
+            <div class="roi-result-value">bis +1.961 €</div>
+          </div>
         </div>
       </div>
     </div>
@@ -111,11 +180,11 @@
 </section>
 
 <!-- ── Features ── -->
-<section style="background: var(--bg-subtle); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+<section style="background:var(--bg-subtle); border-top:1px solid var(--border); border-bottom:1px solid var(--border);">
   <div class="section-inner">
     <div class="section-header reveal">
       <div class="section-label">Was Sie bekommen</div>
-      <h2 class="section-title">Alles, was ein Makler braucht.</h2>
+      <h2 class="section-title">Alles, was ein Maklerbüro braucht.</h2>
     </div>
     <div class="features-grid">
       <div class="feature-card reveal reveal-d1">
@@ -124,126 +193,274 @@
         <p>Jedes Exposé wird automatisch auf erfundene Angaben geprüft — bevor Sie es überhaupt sehen.</p>
       </div>
       <div class="feature-card reveal reveal-d2">
-        <div class="feature-icon">🇩🇪</div>
-        <h3>Optimiert für den deutschen Markt</h3>
-        <p>Natürliche, professionelle Sprache für Kaufinteressenten in Deutschland — keine Übersetzungen.</p>
+        <div class="feature-icon">📅</div>
+        <h3>Terminverwaltung</h3>
+        <p>Besichtigungen und Calls zentral erfassen, verwalten und niemals wieder doppelt buchen.</p>
       </div>
       <div class="feature-card reveal reveal-d3">
-        <div class="feature-icon">🔒</div>
-        <h3>Ihre Notizen bleiben privat</h3>
-        <p>Interne Makler-Notizen werden nie an die KI oder in den Text übergeben.</p>
+        <div class="feature-icon">🇩🇪</div>
+        <h3>Optimiert für Deutschland</h3>
+        <p>Natürliche, professionelle Sprache für den deutschen Immobilienmarkt. Keine Übersetzungen.</p>
       </div>
       <div class="feature-card reveal reveal-d4">
-        <div class="feature-icon">📋</div>
-        <h3>Lückenloser Prüfpfad</h3>
-        <p>Jedes Exposé wird mit Zeitstempel, Prüfer und Status gespeichert — revisionssicher.</p>
+        <div class="feature-icon">🔒</div>
+        <h3>Ihre Daten bleiben privat</h3>
+        <p>Interne Notizen und Kundendaten werden sicher gespeichert und nie an Dritte weitergegeben.</p>
       </div>
       <div class="feature-card reveal reveal-d5">
-        <div class="feature-icon">⚡</div>
-        <h3>Kein Setup-Aufwand</h3>
-        <p>Einfaches Formular, kein Softwareinstall, kein Schulungsbedarf für Ihr Team.</p>
+        <div class="feature-icon">📋</div>
+        <h3>Lückenloser Prüfpfad</h3>
+        <p>Jedes Exposé mit Zeitstempel, Prüfer und Status — revisionssicher und nachvollziehbar.</p>
       </div>
       <div class="feature-card reveal reveal-d6">
-        <div class="feature-icon">✏️</div>
-        <h3>Immer bearbeitbar</h3>
-        <p>Der generierte Text ist ein Entwurf. Sie können ihn vor der Freigabe anpassen.</p>
+        <div class="feature-icon">⚡</div>
+        <h3>Sofort einsatzbereit</h3>
+        <p>Kein Software-Install, keine Schulungen. Setup in unter 48 Stunden, danach direkt produktiv.</p>
       </div>
     </div>
   </div>
 </section>
 
 <!-- ── Pricing ── -->
-<section id="preise" style="background:var(--bg-subtle); border-top:1px solid var(--border); border-bottom:1px solid var(--border);">
+<section id="preise">
   <div class="section-inner">
-    <div class="section-header reveal">
-      <div class="section-label">Preise</div>
+    <div class="section-header reveal" style="text-align:center;">
+      <div class="section-label" style="justify-content:center;">Preise</div>
       <h2 class="section-title">Transparent. Kein Kleingedrucktes.</h2>
-      <p class="section-sub">Einmalige Einrichtungsgebühr + monatliche Nutzung. Jederzeit kündbar.</p>
+      <p class="section-sub" style="margin:0 auto;">
+        Vergleichbare KI-Implementierungen kosten im Markt <strong>1.500–20.000 €</strong> Einrichtungsgebühr.
+        Bei Immo AI: <span class="zero-setup">0 € Setup</span> — sofort startklar.
+      </p>
+    </div>
+
+    <!-- Billing toggle -->
+    <div class="billing-toggle reveal">
+      <button class="billing-btn active" data-period="monthly">Monatlich</button>
+      <button class="billing-btn" data-period="annual">Jährlich <span class="billing-save">2 Monate gratis</span></button>
     </div>
 
     <div class="pricing-grid-3 pricing-grid">
+
       <!-- Starter -->
       <div class="pricing-card reveal reveal-d1">
-        <div class="plan-label">Starter</div>
-        <div class="plan-setup-fee">299 € <span>Einrichtung</span></div>
-        <div class="pricing-price">49 €<span>/Monat</span></div>
+        <div class="plan-label">KI-Starter</div>
+        <div class="pricing-price">
+          <span class="price-monthly">299 €</span>
+          <span class="price-annual" style="display:none;">249 €</span>
+          <span>/Monat</span>
+        </div>
+        <div class="price-annual-note" style="display:none;">
+          <span>2.990 € / Jahr · 2 Monate gratis</span>
+        </div>
         <p class="pricing-desc">Für Einzelmakler, die sofort Zeit sparen wollen.</p>
         <ul class="pricing-features">
-          <li>KI-Exposé-Generator</li>
+          <li>Unbegrenzte KI-Exposés</li>
+          <li>Automatischer Faktencheck</li>
           <li>Review &amp; Freigabe-Interface</li>
           <li>Google Sheets Integration</li>
           <li>Google Drive Export (.docx)</li>
           <li>E-Mail-Benachrichtigungen</li>
           <li class="feature-disabled">Kalendersystem</li>
-          <li class="feature-disabled">Automatische Erinnerungen</li>
-          <li class="feature-disabled">WhatsApp Push</li>
-          <li class="pricing-limit">30 Exposés / Monat</li>
+          <li class="feature-disabled">WhatsApp-Benachrichtigungen</li>
+          <li class="feature-disabled">Lead-Qualifizierung</li>
         </ul>
         <a href="/signup?plan=starter" class="btn btn-outline btn-pricing">Jetzt starten</a>
       </div>
 
-      <!-- Pro (featured) -->
+      <!-- Professional (featured) -->
       <div class="pricing-card featured reveal reveal-d2">
         <div class="pricing-badge">⭐ Empfohlen</div>
-        <div class="plan-label">Pro</div>
-        <div class="plan-setup-fee">499 € <span>Einrichtung</span></div>
-        <div class="pricing-price">99 €<span>/Monat</span></div>
+        <div class="plan-label">KI-Professional</div>
+        <div class="pricing-price">
+          <span class="price-monthly">599 €</span>
+          <span class="price-annual" style="display:none;">499 €</span>
+          <span>/Monat</span>
+        </div>
+        <div class="price-annual-note" style="display:none;">
+          <span>5.990 € / Jahr · 2 Monate gratis</span>
+        </div>
         <p class="pricing-desc">Für aktive Makler mit vollem Workflow-Bedarf.</p>
         <ul class="pricing-features">
           <li>Alles aus Starter</li>
-          <li>Kalendersystem &amp; Terminverwaltung</li>
-          <li>Automatische Erinnerungs-E-Mails</li>
-          <li>WhatsApp Push-Benachrichtigungen</li>
+          <li>Automatische Terminbuchung</li>
+          <li>Kalenderintegration</li>
+          <li>WhatsApp-Benachrichtigungen</li>
+          <li>Lead-Qualifizierung</li>
           <li>Google Calendar Sync</li>
-          <li>Cal.com Integration</li>
-          <li class="feature-disabled">Multi-User (bis 5)</li>
-          <li class="feature-disabled">Exposé-Tonalität anpassen</li>
-          <li class="pricing-limit">60 Exposés / Monat</li>
+          <li>Prioritäts-Support</li>
+          <li class="feature-disabled">Individuelle KI-Tonalität</li>
+          <li class="feature-disabled">CRM-Integration</li>
         </ul>
         <a href="/signup?plan=pro" class="btn btn-primary btn-pricing">Jetzt starten →</a>
       </div>
 
-      <!-- Business -->
+      <!-- Enterprise -->
       <div class="pricing-card reveal reveal-d3">
-        <div class="plan-label">Business</div>
-        <div class="plan-setup-fee">999 € <span>Einrichtung</span></div>
-        <div class="pricing-price">199 €<span>/Monat</span></div>
+        <div class="plan-label">KI-Enterprise</div>
+        <div class="pricing-price">
+          <span class="price-monthly">1.199 €</span>
+          <span class="price-annual" style="display:none;">999 €</span>
+          <span>/Monat</span>
+        </div>
+        <div class="price-annual-note" style="display:none;">
+          <span>11.990 € / Jahr · 2 Monate gratis</span>
+        </div>
         <p class="pricing-desc">Für Maklerbüros mit Team und hohem Volumen.</p>
         <ul class="pricing-features">
-          <li>Alles aus Pro</li>
-          <li>Multi-User bis zu 5 Makler</li>
-          <li>Exposé-Tonalität individualisierbar</li>
-          <li>Priority Support (24h Reaktionszeit)</li>
+          <li>Alles aus Professional</li>
+          <li>Individuelle KI-Tonalität</li>
+          <li>CRM-Integrationen</li>
+          <li>Unbegrenzte Nutzerzugänge</li>
+          <li>Priorisierter 24h-Support</li>
           <li>Dediziertes Onboarding</li>
-          <li>Team-Einweisung inkl.</li>
-          <li>Branding-Anpassung</li>
           <li>SLA-Garantie</li>
-          <li class="pricing-limit">150 Exposés / Monat</li>
+          <li>Branding-Anpassung</li>
+          <li>Team-Einweisung inklusive</li>
         </ul>
         <a href="/signup?plan=business" class="btn btn-outline btn-pricing">Demo anfragen</a>
       </div>
     </div>
 
+    <!-- Setup fee banner -->
+    <div class="setup-banner reveal">
+      <div class="setup-banner-icon">🎁</div>
+      <div>
+        <strong>0 € Einrichtungsgebühr — für alle Pläne</strong>
+        <p>Vergleichbare Implementierungen im Markt kosten 1.500–20.000 € Setup. Bei Immo AI starten Sie ohne Vorabinvestition.</p>
+      </div>
+    </div>
+
     <!-- Trust bar -->
     <div class="trust-bar reveal">
-      <div class="trust-item">
-        <span class="trust-icon">🔒</span>
-        <span>Keine versteckten Kosten</span>
-      </div>
+      <div class="trust-item"><span class="trust-icon">🔒</span><span>Keine versteckten Kosten</span></div>
       <div class="trust-divider"></div>
-      <div class="trust-item">
-        <span class="trust-icon">📅</span>
-        <span>Jederzeit monatlich kündbar</span>
-      </div>
+      <div class="trust-item"><span class="trust-icon">📅</span><span>Monatlich kündbar</span></div>
       <div class="trust-divider"></div>
-      <div class="trust-item">
-        <span class="trust-icon">🇩🇪</span>
-        <span>DSGVO-konforme Datenverarbeitung</span>
-      </div>
+      <div class="trust-item"><span class="trust-icon">🇩🇪</span><span>DSGVO-konform</span></div>
       <div class="trust-divider"></div>
-      <div class="trust-item">
-        <span class="trust-icon">⚡</span>
-        <span>Setup in unter 48 Stunden</span>
+      <div class="trust-item"><span class="trust-icon">⚡</span><span>Setup in 48 Stunden</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Comparison ── -->
+<section style="background:var(--bg-subtle); border-top:1px solid var(--border); border-bottom:1px solid var(--border);">
+  <div class="section-inner">
+    <div class="section-header reveal" style="text-align:center;">
+      <div class="section-label" style="justify-content:center;">Vergleich</div>
+      <h2 class="section-title">Immo AI vs. der Markt</h2>
+    </div>
+    <div class="compare-table reveal">
+      <div class="compare-header">
+        <div></div>
+        <div>Andere KI-Lösungen</div>
+        <div class="compare-us">Immo AI</div>
+      </div>
+      <div class="compare-row">
+        <span>Einrichtungsgebühr</span>
+        <span class="compare-no">1.500–20.000 €</span>
+        <span class="compare-yes">0 €</span>
+      </div>
+      <div class="compare-row">
+        <span>Spezialisiert auf Immobilien</span>
+        <span class="compare-no">Generisch</span>
+        <span class="compare-yes">100% fokussiert</span>
+      </div>
+      <div class="compare-row">
+        <span>Automatischer Faktencheck</span>
+        <span class="compare-no">Oft nicht enthalten</span>
+        <span class="compare-yes">Inklusive</span>
+      </div>
+      <div class="compare-row">
+        <span>Menschliche Freigabekontrolle</span>
+        <span class="compare-no">Selten</span>
+        <span class="compare-yes">Immer</span>
+      </div>
+      <div class="compare-row">
+        <span>Terminverwaltung integriert</span>
+        <span class="compare-no">Separates Tool nötig</span>
+        <span class="compare-yes">Direkt integriert</span>
+      </div>
+      <div class="compare-row">
+        <span>Setup-Zeit</span>
+        <span class="compare-no">Wochen bis Monate</span>
+        <span class="compare-yes">Unter 48 Stunden</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FAQ ── -->
+<section id="faq">
+  <div class="section-inner" style="max-width:800px;">
+    <div class="section-header reveal" style="text-align:center;">
+      <div class="section-label" style="justify-content:center;">FAQ</div>
+      <h2 class="section-title">Häufige Fragen</h2>
+    </div>
+
+    <div class="faq-list reveal">
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          Ist die KI-Ausgabe wirklich so gut, dass ich sie verwenden kann?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a">
+          Ja — und nein. Das System erstellt professionelle, verkaufsstarke Texte auf Basis Ihrer Objektdaten.
+          Aber: Kein Exposé verlässt das System ohne Ihre Freigabe. Sie prüfen, korrigieren und geben frei.
+          Die KI übernimmt die Routinearbeit, Sie behalten die Qualitätskontrolle.
+        </div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          Warum gibt es keine Einrichtungsgebühr?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a">
+          Weil wir daran glauben, dass Sie das System erst erleben müssen, bevor Sie eine große Vorausinvestition tätigen.
+          Vergleichbare Lösungen am Markt verlangen 1.500–20.000 € nur für die Einrichtung.
+          Unser Modell: kein Risiko für Sie, Vertrauen durch Ergebnisse.
+        </div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          Was passiert, wenn ich mehr Exposés brauche als im Plan enthalten?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a">
+          Im Professional- und Enterprise-Plan gibt es keine fixen Monatslimits.
+          Im Starter-Plan können Sie bei Bedarf auf einen höheren Plan upgraden — jederzeit, ohne Bindung.
+        </div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          Wie lange dauert die Einrichtung?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a">
+          In der Regel unter 48 Stunden. Kein Software-Install, keine Server-Konfiguration.
+          Sie erhalten einen Zugang, loggen sich ein und können sofort loslegen.
+        </div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          Werden meine Kundendaten sicher verarbeitet?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a">
+          Ja. Alle Daten werden DSGVO-konform verarbeitet. Interne Notizen und Kundenkontakte werden
+          nicht an KI-Modelle weitergegeben. Exposé-Texte werden ausschließlich aus den von Ihnen
+          eingegebenen Objektdaten generiert.
+        </div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">
+          Kann ich jederzeit kündigen?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a">
+          Ja. Keine Mindestlaufzeit, keine versteckten Gebühren, keine Kündigungsfristen.
+          Monatliche Pläne laufen monatlich. Jahrespläne laufen bis zum Ablauf des bezahlten Jahres.
+        </div>
       </div>
     </div>
   </div>
@@ -252,22 +469,28 @@
 <!-- ── CTA ── -->
 <section class="cta-section" id="kontakt">
   <div class="section-inner reveal">
-    <h2>Bereit, Zeit zu sparen?</h2>
+    <div class="cta-badge">Für Makler, die vorankommen wollen</div>
+    <h2>Bereit, täglich 4–8 Stunden zu sparen?</h2>
     <p>
-      Buchen Sie eine kostenlose Demo — wir zeigen Ihnen live,
-      wie Immo AI in Ihrem Büro funktioniert.
+      Starten Sie noch heute — ohne Einrichtungsgebühr, ohne Risiko.
+      Die meisten Nutzer sind innerhalb von 48 Stunden produktiv.
     </p>
     <div class="cta-actions">
-      <a href="mailto:demo@immo-ai.de" class="btn btn-primary btn-lg">Demo per E-Mail anfragen</a>
-      <a href="/generate" class="btn btn-outline-white btn-lg">Direkt ausprobieren</a>
+      <a href="/signup?plan=pro" class="btn btn-primary btn-lg">
+        Jetzt kostenlos starten →
+      </a>
+      <a href="mailto:demo@immo-ai.de" class="btn btn-outline-white btn-lg">
+        Demo anfragen
+      </a>
     </div>
-    <p style="margin-top:1.75rem; font-size:.875rem; color:rgba(148,163,184,.7);">
-      Keine Kreditkarte. Keine Bindung. Erstgespräch dauert 20 Minuten.
+    <p style="margin-top:2rem; font-size:.875rem; color:rgba(148,163,184,.65);">
+      0 € Setup · Monatlich kündbar · In 48h einsatzbereit
     </p>
   </div>
 </section>
 
 <script>
+/* ── Counter animation ── */
 (function() {
   function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
 
@@ -285,7 +508,7 @@
         var elapsed  = Math.min(ts - startTime, duration);
         var progress = easeOut(elapsed / duration);
         var value    = progress * target;
-        el.textContent = prefix + (isInt ? Math.round(value) : value.toFixed(1)) + suffix;
+        el.textContent = prefix + (isInt ? Math.round(value).toLocaleString('de') : value.toFixed(0)) + suffix;
         if (elapsed < duration) requestAnimationFrame(step);
       }
       requestAnimationFrame(step);
@@ -297,18 +520,53 @@
     if (done) return;
     var bar = document.querySelector('.stats-bar');
     if (!bar) return;
-    var rect = bar.getBoundingClientRect();
-    if (rect.top < window.innerHeight - 60) {
+    if (bar.getBoundingClientRect().top < window.innerHeight - 60) {
       done = true;
       runCounters();
       window.removeEventListener('scroll', check);
     }
   }
-
   window.addEventListener('scroll', check, { passive: true });
-  /* Also check immediately in case already visible */
-  setTimeout(check, 100);
+  setTimeout(check, 200);
 })();
+
+/* ── Billing toggle ── */
+(function() {
+  var btns = document.querySelectorAll('.billing-btn');
+  btns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      btns.forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      var period = btn.getAttribute('data-period');
+      var monthly = document.querySelectorAll('.price-monthly');
+      var annual  = document.querySelectorAll('.price-annual');
+      var note    = document.querySelectorAll('.price-annual-note');
+      if (period === 'annual') {
+        monthly.forEach(function(e) { e.style.display = 'none'; });
+        annual.forEach(function(e)  { e.style.display = 'inline'; });
+        note.forEach(function(e)    { e.style.display = 'block'; });
+      } else {
+        monthly.forEach(function(e) { e.style.display = 'inline'; });
+        annual.forEach(function(e)  { e.style.display = 'none'; });
+        note.forEach(function(e)    { e.style.display = 'none'; });
+      }
+    });
+  });
+})();
+
+/* ── FAQ toggle ── */
+function toggleFaq(btn) {
+  var item = btn.parentElement;
+  var isOpen = item.classList.contains('open');
+  document.querySelectorAll('.faq-item.open').forEach(function(i) {
+    i.classList.remove('open');
+    i.querySelector('.faq-icon').textContent = '+';
+  });
+  if (!isOpen) {
+    item.classList.add('open');
+    btn.querySelector('.faq-icon').textContent = '−';
+  }
+}
 </script>
 
 {% endblock %}

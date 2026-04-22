@@ -31,7 +31,32 @@
     <li><a href="/login" class="nav-cta" style="background:transparent; border:1.5px solid rgba(255,255,255,.3); color:#fff;">Login</a></li>
     {% endif %}
   </ul>
+  <button class="nav-hamburger" id="navHamburger" aria-label="Menü öffnen" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
 </nav>
+
+<!-- Mobile menu -->
+<div class="nav-mobile-menu" id="navMobileMenu">
+  <ul>
+    <li><a href="/#wie-es-funktioniert" onclick="closeMobileMenu()">So funktioniert's</a></li>
+    <li><a href="/#preise" onclick="closeMobileMenu()">Preise</a></li>
+    <li><a href="/generate" onclick="closeMobileMenu()">Generator</a></li>
+    <li><a href="/review" onclick="closeMobileMenu()">Review</a></li>
+    <li><a href="/calendar" onclick="closeMobileMenu()">Kalender</a></li>
+    <li><a href="/about" onclick="closeMobileMenu()">Über uns</a></li>
+    {% if session.get('logged_in') %}
+    <li><a href="/generate" class="mobile-cta" onclick="closeMobileMenu()">Dashboard</a></li>
+    {% if session.get('username') == 'admin' %}
+    <li><a href="/admin/users" onclick="closeMobileMenu()">👥 Benutzer</a></li>
+    {% endif %}
+    <li><a href="/logout" onclick="closeMobileMenu()">Abmelden</a></li>
+    {% else %}
+    <li><a href="/signup?plan=pro" class="mobile-cta" onclick="closeMobileMenu()">Jetzt starten →</a></li>
+    <li><a href="/login" onclick="closeMobileMenu()">Login</a></li>
+    {% endif %}
+  </ul>
+</div>
 
 {% block content %}{% endblock %}
 
@@ -64,6 +89,35 @@ window.IMMOAI_KEY = localStorage.getItem('immoai_key') || '';
     nav.classList.toggle('scrolled', window.scrollY > 20);
   }, { passive: true });
 })();
+
+/* Hamburger menu */
+(function() {
+  const btn  = document.getElementById('navHamburger');
+  const menu = document.getElementById('navMobileMenu');
+  if (!btn || !menu) return;
+
+  btn.addEventListener('click', function() {
+    const isOpen = menu.classList.toggle('open');
+    btn.classList.toggle('open', isOpen);
+    btn.setAttribute('aria-expanded', String(isOpen));
+    document.body.style.overflow = isOpen ? 'hidden' : '';
+  });
+
+  document.addEventListener('click', function(e) {
+    if (!btn.contains(e.target) && !menu.contains(e.target)) {
+      closeMobileMenu();
+    }
+  });
+})();
+
+function closeMobileMenu() {
+  const btn  = document.getElementById('navHamburger');
+  const menu = document.getElementById('navMobileMenu');
+  if (!menu) return;
+  menu.classList.remove('open');
+  if (btn) { btn.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }
+  document.body.style.overflow = '';
+}
 
 /* Scroll reveal */
 (function() {
