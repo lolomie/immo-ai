@@ -24,14 +24,14 @@ try:
     from .auth import (api_login_required, check_credentials, login_required,
                        admin_required, add_user, delete_user, list_users,
                        get_user_plan, get_user_phone, get_user_email,
-                       set_user_plan, set_user_phone, set_user_email,
-                       count_non_admin_users)
+                       get_user_gcal_id, set_user_plan, set_user_phone,
+                       set_user_email, set_user_gcal_id, count_non_admin_users)
 except ImportError:
     from auth import (api_login_required, check_credentials, login_required,
                       admin_required, add_user, delete_user, list_users,
                       get_user_plan, get_user_phone, get_user_email,
-                      set_user_plan, set_user_phone, set_user_email,
-                      count_non_admin_users)
+                      get_user_gcal_id, set_user_plan, set_user_phone,
+                      set_user_email, set_user_gcal_id, count_non_admin_users)
 
 
 def _is_admin() -> bool:
@@ -295,6 +295,8 @@ def api_admin_patch_user(username):
             set_user_phone(username, data["phone"].strip())
         if "email" in data:
             set_user_email(username, data["email"].strip())
+        if "gcal_calendar_id" in data:
+            set_user_gcal_id(username, data["gcal_calendar_id"].strip())
         return jsonify({"ok": True})
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
@@ -378,11 +380,12 @@ def calendar_create():
             except Exception as e:
                 app.logger.warning("Sheets termin sync failed: %s", e)
 
-            # 2. Sync to Google Calendar
+            # 2. Sync to Google Calendar (use user's own calendar if set)
             try:
                 from src.gcal_client import create_event
-                from src.config import GCAL_CALENDAR_ID, GOOGLE_SERVICE_ACCOUNT_FILE, GOOGLE_SERVICE_ACCOUNT_JSON
-                if GCAL_CALENDAR_ID and (GOOGLE_SERVICE_ACCOUNT_FILE or GOOGLE_SERVICE_ACCOUNT_JSON):
+                from src.config import GOOGLE_SERVICE_ACCOUNT_FILE, GOOGLE_SERVICE_ACCOUNT_JSON
+                user_gcal_id = get_user_gcal_id(_username_snap)
+                if user_gcal_id and (GOOGLE_SERVICE_ACCOUNT_FILE or GOOGLE_SERVICE_ACCOUNT_JSON):
                     dt_start = f"{_appt_dict['date']}T{_appt_dict['time']}:00"
                     from datetime import datetime, timedelta
                     dt_end = (datetime.fromisoformat(dt_start) + timedelta(hours=1)).isoformat()
@@ -401,8 +404,8 @@ def calendar_create():
                         end_dt=dt_end,
                         description=desc,
                         location=_appt_dict.get("property_id", ""),
-                        attendee_emails=attendees,
                         appointment_id=_appt_dict["appointment_id"],
+                        calendar_id=user_gcal_id,
                     )
                     app.logger.info("GCal event created: %s for appt %s", gcal_id, _appt_dict["appointment_id"])
             except Exception as e:

@@ -60,6 +60,7 @@
         <tr style="border-bottom:2px solid var(--border);">
           <th style="text-align:left;padding:8px 12px;font-size:.8125rem;color:var(--slate);">Benutzer</th>
           <th style="text-align:left;padding:8px 12px;font-size:.8125rem;color:var(--slate);">E-Mail</th>
+          <th style="text-align:left;padding:8px 12px;font-size:.8125rem;color:var(--slate);">Google Kalender ID</th>
           <th style="text-align:left;padding:8px 12px;font-size:.8125rem;color:var(--slate);">Plan</th>
           <th style="text-align:left;padding:8px 12px;font-size:.8125rem;color:var(--slate);">WhatsApp</th>
           <th style="text-align:left;padding:8px 12px;font-size:.8125rem;color:var(--slate);">Rolle</th>
@@ -72,11 +73,21 @@
           <td style="padding:10px 12px;font-weight:600;color:var(--navy);">{{ user.username }}</td>
           <td style="padding:10px 12px;">
             {% if user.role == 'admin' %}
-              <span style="font-size:.8125rem;color:var(--slate-light);">{{ user.email or 'via .env (ADMIN_EMAIL)' }}</span>
+              <span style="font-size:.8125rem;color:var(--slate-light);">{{ user.email or 'via .env' }}</span>
             {% else %}
               <input type="email" value="{{ user.email or '' }}" placeholder="email@domain.de"
-                style="padding:.3rem .6rem;border:1.5px solid var(--border);border-radius:6px;font-size:.8125rem;width:190px;"
+                style="padding:.3rem .6rem;border:1.5px solid var(--border);border-radius:6px;font-size:.8125rem;width:175px;"
                 onblur="setEmail('{{ user.username }}', this.value)">
+            {% endif %}
+          </td>
+          <td style="padding:10px 12px;">
+            {% if user.role == 'admin' %}
+              <span style="font-size:.8125rem;color:var(--slate-light);">{{ user.email or 'via .env (GCAL_CALENDAR_ID)' }}</span>
+            {% else %}
+              <input type="text" value="{{ user.gcal_calendar_id or '' }}" placeholder="anna@gmx.de"
+                title="Google Calendar ID — meistens die Gmail/GMX-Adresse des Users"
+                style="padding:.3rem .6rem;border:1.5px solid var(--border);border-radius:6px;font-size:.8125rem;width:175px;"
+                onblur="setGcalId('{{ user.username }}', this.value)">
             {% endif %}
           </td>
           <td style="padding:10px 12px;">
@@ -191,6 +202,16 @@ async function setEmail(username, email) {
   });
   const data = await res.json();
   if (!res.ok) alert(data.error || 'E-Mail-Änderung fehlgeschlagen');
+}
+
+async function setGcalId(username, gcal_calendar_id) {
+  const res = await fetch(`/api/admin/users/${encodeURIComponent(username)}`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({gcal_calendar_id}),
+  });
+  const data = await res.json();
+  if (!res.ok) alert(data.error || 'Kalender-ID-Änderung fehlgeschlagen');
 }
 </script>
 {% endblock %}

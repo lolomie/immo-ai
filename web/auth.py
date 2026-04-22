@@ -87,6 +87,30 @@ def get_user_email(username: str) -> str:
     return _get_user_record(username).get("email", "")
 
 
+def get_user_gcal_id(username: str) -> str:
+    """Return the user's personal Google Calendar ID (their email or custom ID)."""
+    if username == ADMIN_USER:
+        return os.environ.get("GCAL_CALENDAR_ID", "")
+    rec = _get_user_record(username)
+    # Fall back to their email address as calendar ID if no explicit gcal_id set
+    return rec.get("gcal_calendar_id", "") or rec.get("email", "")
+
+
+def set_user_gcal_id(username: str, gcal_id: str) -> None:
+    if username == ADMIN_USER:
+        raise ValueError("Admin-Kalender über GCAL_CALENDAR_ID in .env setzen.")
+    users = _load_users()
+    if username not in users:
+        raise ValueError("Benutzer nicht gefunden.")
+    rec = users[username]
+    if isinstance(rec, str):
+        rec = {"hash": rec, "plan": "starter", "phone": "", "email": "", "gcal_calendar_id": gcal_id}
+    else:
+        rec["gcal_calendar_id"] = gcal_id
+    users[username] = rec
+    _save_users(users)
+
+
 def set_user_plan(username: str, plan: str) -> None:
     if username == ADMIN_USER:
         raise ValueError("Admin-Plan über ADMIN_PLAN in .env setzen.")
@@ -134,7 +158,7 @@ def set_user_email(username: str, email: str) -> None:
 
 # ── User management ───────────────────────────────────────────────────────────
 
-def add_user(username: str, password: str, plan: str = "starter", phone: str = "", email: str = "") -> None:
+def add_user(username: str, password: str, plan: str = "starter", phone: str = "", email: str = "", gcal_calendar_id: str = "") -> None:
     if not username or not password:
         raise ValueError("Benutzername und Passwort dürfen nicht leer sein.")
     if username == ADMIN_USER:
@@ -143,7 +167,7 @@ def add_user(username: str, password: str, plan: str = "starter", phone: str = "
         raise ValueError("Passwort muss mindestens 8 Zeichen haben.")
     users = _load_users()
     hashed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode()
-    users[username] = {"hash": hashed, "plan": plan, "phone": phone, "email": email}
+    users[username] = {"hash": hashed, "plan": plan, "phone": phone, "email": email, "gcal_calendar_id": gcal_calendar_id}
     _save_users(users)
     logger.info("User added: %s (plan=%s, email=%s)", username, plan, email)
 
@@ -171,6 +195,7 @@ def list_users() -> list:
             "plan": rec.get("plan", "starter"),
             "phone": rec.get("phone", ""),
             "email": rec.get("email", ""),
+            "gcal_calendar_id": rec.get("gcal_calendar_id", ""),
         })
     return result
 

@@ -52,6 +52,7 @@ def create_event(
     location: str = "",
     attendee_emails: Optional[list[str]] = None,
     appointment_id: Optional[str] = None,
+    calendar_id: Optional[str] = None,
 ) -> str:
     """
     Create a Google Calendar event.
@@ -88,8 +89,9 @@ def create_event(
             "private": {"immoai_appointment_id": appointment_id}
         }
 
+    cal_id = calendar_id or GCAL_CALENDAR_ID
     created = service.events().insert(
-        calendarId=GCAL_CALENDAR_ID,
+        calendarId=cal_id,
         body=event_body,
         sendUpdates="none",
     ).execute()
