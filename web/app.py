@@ -973,14 +973,69 @@ def api_jobs():
         return jsonify({"error": "Fehler beim Laden der Jobs"}), 500
 
 
+@app.route("/api/jobs/<job_id>/download")
+@api_login_required
+def api_job_download(job_id):
+    """Download a single approved job as .docx."""
+    path = os.path.join(LOGS_DIR, f"{job_id}.json")
+    if not os.path.exists(path):
+        return jsonify({"error": "Job nicht gefunden"}), 404
+
+    # Return cached DOCX if available
+    docx_path = path.replace(".json", ".docx")
+    if os.path.exists(docx_path):
+        with open(docx_path, "rb") as f:
+            docx_bytes = f.read()
+    else:
+        # Generate on demand
+        with open(path, "r", encoding="utf-8") as f:
+            job = json.load(f)
+        try:
+            from src.docx_creator import create_expose_docx_bytes
+            from src.models import PropertyInput
+            prop = PropertyInput(
+                property_id=job.get("property_id", job_id),
+                address=job.get("address", job.get("property_id", "")),
+                city=job.get("city", ""),
+                zip_code=job.get("zip_code", ""),
+                property_type=job.get("property_type", "Immobilie"),
+                size_sqm=float(job.get("size_sqm") or 0),
+                rooms=float(job.get("rooms") or 0),
+                purchase_price=job.get("purchase_price") or None,
+                monthly_rent=job.get("monthly_rent") or None,
+                year_built=job.get("year_built") or None,
+                energy_class=job.get("energy_class") or None,
+                features=job.get("features") or [],
+            )
+            docx_bytes = create_expose_docx_bytes(
+                property_data=prop,
+                expose_text=job.get("expose_text", ""),
+            )
+        except Exception as e:
+            app.logger.error("DOCX generation for download failed: %s", e)
+            return jsonify({"error": f"DOCX konnte nicht erstellt werden: {e}"}), 500
+
+    filename = f"Expose_{job_id}.docx"
+    return Response(
+        docx_bytes,
+        mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @app.route("/api/jobs/export")
 @api_login_required
 def api_jobs_export():
+    """Export all approved jobs as a ZIP of DOCX files."""
+    import zipfile
+    import io as _io
     try:
         if not os.path.isdir(LOGS_DIR):
-            return Response("[]", mimetype="application/json")
+            return jsonify({"error": "Keine Jobs gefunden"}), 404
 
         status_filter = request.args.get("status", "approved")
+        fmt = request.args.get("format", "zip")  # zip | json (legacy)
+
         jobs = []
         for fname in os.listdir(LOGS_DIR):
             if not fname.endswith(".json"):
@@ -995,11 +1050,64 @@ def api_jobs_export():
             if status_filter == "all" or job.get("status") == status_filter:
                 jobs.append(job)
 
+        if not jobs:
+            return jsonify({"error": f"Keine Jobs mit Status '{status_filter}' gefunden"}), 404
+
         jobs.sort(key=lambda j: j.get("timestamp", "") or "", reverse=True)
+
+        if fmt == "json":
+            return Response(
+                json.dumps(jobs, ensure_ascii=False, indent=2),
+                mimetype="application/json",
+                headers={"Content-Disposition": f"attachment; filename=immo-ai-{status_filter}.json"},
+            )
+
+        # Build ZIP with DOCX per job
+        from src.docx_creator import create_expose_docx_bytes
+        from src.models import PropertyInput
+        zip_buf = _io.BytesIO()
+        with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for job in jobs:
+                job_id = job.get("job_id", "unknown")
+                prop_id = job.get("property_id", job_id)
+
+                # Use cached DOCX if available
+                cached = os.path.join(LOGS_DIR, f"{job_id}.docx")
+                if os.path.exists(cached):
+                    with open(cached, "rb") as f:
+                        docx_bytes = f.read()
+                else:
+                    try:
+                        prop = PropertyInput(
+                            property_id=prop_id,
+                            address=job.get("address", prop_id),
+                            city=job.get("city", ""),
+                            zip_code=job.get("zip_code", ""),
+                            property_type=job.get("property_type", "Immobilie"),
+                            size_sqm=float(job.get("size_sqm") or 0),
+                            rooms=float(job.get("rooms") or 0),
+                            purchase_price=job.get("purchase_price") or None,
+                            monthly_rent=job.get("monthly_rent") or None,
+                            year_built=job.get("year_built") or None,
+                            energy_class=job.get("energy_class") or None,
+                            features=job.get("features") or [],
+                        )
+                        docx_bytes = create_expose_docx_bytes(
+                            property_data=prop,
+                            expose_text=job.get("expose_text", ""),
+                        )
+                    except Exception as e:
+                        app.logger.warning("DOCX failed for %s: %s", job_id, e)
+                        continue
+
+                safe_name = f"Expose_{prop_id}_{job_id}.docx".replace("/", "-").replace(" ", "_")
+                zf.writestr(safe_name, docx_bytes)
+
+        zip_buf.seek(0)
         return Response(
-            json.dumps(jobs, ensure_ascii=False, indent=2),
-            mimetype="application/json",
-            headers={"Content-Disposition": f"attachment; filename=immo-ai-{status_filter}.json"},
+            zip_buf.read(),
+            mimetype="application/zip",
+            headers={"Content-Disposition": f"attachment; filename=immo-ai-expose-{status_filter}.zip"},
         )
     except Exception as e:
         app.logger.error("api_jobs_export error: %s", e, exc_info=True)
@@ -1043,27 +1151,59 @@ def api_review(job_id):
         job["reviewed_by"] = reviewer
         job["review_note"] = None
 
-        # Find the email of whoever created/owns this job
-        from src.config import SMTP_USER, SMTP_PASSWORD
+        # Resolve recipient email
+        from src.config import SMTP_USER, SMTP_PASSWORD, ADMIN_EMAIL
         creator = job.get("created_by") or ""
-        agent_email = get_user_email(creator) if creator else ""
-        if not agent_email:
-            # fallback: email of the reviewer if it looks like an email
-            agent_email = reviewer if "@" in reviewer else ""
+        agent_email = (get_user_email(creator) if creator else "") or ADMIN_EMAIL
+        if not agent_email and "@" in reviewer:
+            agent_email = reviewer
         email_configured = bool(SMTP_USER and SMTP_PASSWORD)
 
-        # Try to send notification email
+        # Build DOCX for attachment and download
+        docx_bytes = b""
+        try:
+            from src.docx_creator import create_expose_docx_bytes
+            from src.models import PropertyInput
+            prop = PropertyInput(
+                property_id=job.get("property_id", job_id),
+                address=job.get("address", job.get("property_id", "")),
+                city=job.get("city", ""),
+                zip_code=job.get("zip_code", ""),
+                property_type=job.get("property_type", "Immobilie"),
+                size_sqm=float(job.get("size_sqm") or 0),
+                rooms=float(job.get("rooms") or 0),
+                purchase_price=job.get("purchase_price") or None,
+                monthly_rent=job.get("monthly_rent") or None,
+                year_built=job.get("year_built") or None,
+                energy_class=job.get("energy_class") or None,
+                features=job.get("features") or [],
+            )
+            docx_bytes = create_expose_docx_bytes(
+                property_data=prop,
+                expose_text=job.get("expose_text", ""),
+                agent_email=agent_email or None,
+            )
+            # Cache DOCX in logs dir for later downloads
+            docx_path = path.replace(".json", ".docx")
+            with open(docx_path, "wb") as f:
+                f.write(docx_bytes)
+        except Exception as e:
+            app.logger.warning("DOCX generation failed for job %s: %s", job_id, e)
+
+        # Send approval email with DOCX attachment
         email_sent = False
         email_error = ""
         if email_configured and agent_email:
             try:
-                from src.email_client import send_expose_ready
-                send_expose_ready(
+                from src.email_client import send_expose_approved
+                app_url = request.host_url.rstrip("/")
+                send_expose_approved(
                     agent_email=agent_email,
-                    property_address=job.get("property_id", job_id),
-                    property_id=job.get("property_id", job_id),
-                    doc_url="",
                     job_id=job_id,
+                    property_id=job.get("property_id", job_id),
+                    expose_text=job.get("expose_text", ""),
+                    docx_bytes=docx_bytes,
+                    app_url=app_url,
                 )
                 email_sent = True
                 app.logger.info("Approval email sent to %s for job %s", agent_email, job_id)
@@ -1074,11 +1214,7 @@ def api_review(job_id):
             if not email_configured:
                 email_error = "SMTP nicht konfiguriert (SMTP_USER/SMTP_PASSWORD in .env setzen)"
             elif not agent_email:
-                email_error = "Keine Admin-E-Mail konfiguriert (ADMIN_EMAIL in .env setzen)"
-
-        export_path = path.replace(".json", "_approved.txt")
-        with open(export_path, "w", encoding="utf-8") as f:
-            f.write(job["expose_text"])
+                email_error = "Keine E-Mail-Adresse gefunden (ADMIN_EMAIL in .env setzen)"
 
     elif action == "reject":
         job["status"] = "rejected"

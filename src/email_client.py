@@ -135,6 +135,84 @@ def send_expose_ready(
     _send(agent_email, _build_message(agent_email, subject, body_html, body_text))
 
 
+def send_expose_approved(
+    agent_email: str,
+    job_id: str,
+    property_id: str,
+    expose_text: str,
+    docx_bytes: bytes,
+    app_url: str = "",
+) -> None:
+    """
+    Send approval notification for web-generated exposés (no Drive upload).
+    Attaches the .docx directly to the email.
+    """
+    import html as _html
+    from email.mime.base import MIMEBase
+    from email.mime.application import MIMEApplication
+    from email import encoders
+
+    safe_text = _html.escape(expose_text)
+    download_section = ""
+    if app_url:
+        dl_url = _html.escape(f"{app_url.rstrip('/')}/api/jobs/{job_id}/download", quote=True)
+        download_section = f"""
+  <p style="margin-top:16px;">
+    <a href="{dl_url}"
+       style="display:inline-block;background:#1a3a5c;color:#fff;
+              padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">
+      &#128196;&nbsp; Exposé herunterladen (.docx)
+    </a>
+  </p>
+  <p style="margin-top:8px;font-size:13px;color:#64748b;">
+    Link funktioniert nicht?
+    <a href="{dl_url}" style="color:#2563eb;word-break:break-all;">{dl_url}</a>
+  </p>"""
+
+    preview = expose_text[:600].replace("\n", "<br>")
+    if len(expose_text) > 600:
+        preview += "<br><em style='color:#94a3b8;'>[… vollständiges Exposé im Anhang]</em>"
+
+    subject = f"✅ Exposé freigegeben — {property_id}"
+    body_html = f"""<!DOCTYPE html>
+<html><body style="font-family:sans-serif;color:#1e293b;max-width:620px;margin:auto;padding:24px;">
+  <h2 style="color:#1a3a5c;">Exposé freigegeben</h2>
+  <table style="border-collapse:collapse;width:100%;margin:16px 0;">
+    <tr><td style="padding:8px;background:#f1f5f9;font-weight:600;width:110px;">Objekt-ID</td>
+        <td style="padding:8px;">{_html.escape(property_id)}</td></tr>
+    <tr><td style="padding:8px;background:#f1f5f9;font-weight:600;">Job-ID</td>
+        <td style="padding:8px;font-family:monospace;font-size:.875rem;">{_html.escape(job_id)}</td></tr>
+  </table>
+  {download_section}
+  <div style="margin-top:24px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;
+              padding:16px;font-size:.9rem;line-height:1.7;color:#334155;">
+    <strong style="font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;
+                   color:#64748b;display:block;margin-bottom:8px;">Exposé-Vorschau</strong>
+    {preview}
+  </div>
+  <p style="margin-top:24px;font-size:12px;color:#94a3b8;">
+    Das vollständige Exposé ist als .docx-Datei im Anhang beigefügt.<br>
+    Bitte Inhalt vor Weitergabe an Interessenten nochmals prüfen.
+  </p>
+</body></html>"""
+    body_text = (
+        f"Exposé freigegeben\nObjekt: {property_id} | Job: {job_id}\n\n"
+        f"{expose_text}\n\n"
+        "Das Exposé ist auch als .docx im Anhang.\n"
+        "Bitte Inhalt vor Weitergabe prüfen."
+    )
+
+    msg = _build_message(agent_email, subject, body_html, body_text)
+
+    # Attach the .docx
+    filename = f"Expose_{property_id}_{job_id}.docx"
+    part = MIMEApplication(docx_bytes, Name=filename)
+    part["Content-Disposition"] = f'attachment; filename="{filename}"'
+    msg.attach(part)
+
+    _send(agent_email, msg)
+
+
 def send_expose_invalid(
     agent_email: str,
     property_address: str,
