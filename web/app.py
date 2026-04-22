@@ -42,7 +42,7 @@ limiter = Limiter(
     storage_uri="memory://",
 )
 
-LOGS_DIR = os.path.join(os.path.dirname(__file__), "..", "logs")
+from src.config import LOGS_DIR
 
 
 def _parse_property(data: dict):

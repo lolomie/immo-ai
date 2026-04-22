@@ -18,7 +18,13 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-LOGS_DIR = os.path.join(os.path.dirname(__file__), "..", "logs")
+# On Vercel (and other serverless platforms) only /tmp is writable
+_on_vercel = bool(os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"))
+if _on_vercel:
+    LOGS_DIR = "/tmp/logs"
+else:
+    LOGS_DIR = os.path.join(os.path.dirname(__file__), "..", "logs")
+
 PROMPTS_DIR = os.path.join(os.path.dirname(__file__), "..", "prompts")
 PIPELINE_LOGS_DIR = os.path.join(LOGS_DIR, "pipeline")
 
