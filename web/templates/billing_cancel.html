@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Zahlung abgebrochen — Immo AI{% endblock %}
+
+{% block content %}
+<div style="min-height:70vh; display:flex; align-items:center; justify-content:center; padding:2rem;">
+<div style="width:100%; max-width:480px; text-align:center;">
+
+  <div style="font-size:3rem; margin-bottom:1.25rem; opacity:.6;">↩️</div>
+
+  <h1 style="font-size:1.75rem; font-weight:800; color:var(--navy); letter-spacing:-.04em; margin-bottom:.75rem;">
+    Checkout abgebrochen
+  </h1>
+  <p style="color:var(--slate); font-size:1rem; line-height:1.75; margin-bottom:2rem;">
+    Sie haben den Checkout verlassen. Es wurde nichts berechnet.<br>
+    Ihren gewählten Plan können Sie jederzeit wieder aktivieren.
+  </p>
+
+  <div style="display:flex; gap:.875rem; justify-content:center; flex-wrap:wrap;">
+    <a href="/#preise" class="btn btn-primary">Pläne ansehen →</a>
+    <a href="/" class="btn btn-outline">Zur Startseite</a>
+  </div>
+
+</div>
+</div>
+{% endblock %}

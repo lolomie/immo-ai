@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Zahlung erfolgreich — Immo AI{% endblock %}
+
+{% block content %}
+<div style="min-height:75vh; display:flex; align-items:center; justify-content:center; padding:2rem;">
+<div style="width:100%; max-width:520px; text-align:center;">
+
+{% if error %}
+  <div class="alert alert-error" style="margin-bottom:2rem; text-align:left;">
+    <strong>Fehler bei der Aktivierung:</strong> {{ error }}<br>
+    <small>Ihre Zahlung wurde trotzdem verarbeitet. Bitte kontaktieren Sie uns unter support@immo-ai.de mit Ihrer Session-ID: <code>{{ session_id }}</code></small>
+  </div>
+{% endif %}
+
+  <!-- Success icon -->
+  <div style="width:80px; height:80px; background:var(--green-bg); border:2px solid var(--green-border);
+              border-radius:50%; display:flex; align-items:center; justify-content:center;
+              font-size:2.25rem; margin:0 auto 1.75rem;">
+    ✅
+  </div>
+
+  <h1 style="font-size:2rem; font-weight:900; color:var(--navy); letter-spacing:-.04em; margin-bottom:.75rem;">
+    {% if error %}Anfrage erhalten{% else %}Abonnement aktiviert!{% endif %}
+  </h1>
+
+  <p style="color:var(--slate); font-size:1.0625rem; line-height:1.75; margin-bottom:2rem; max-width:420px; margin-left:auto; margin-right:auto;">
+    {% if error %}
+      Ihre Anfrage wurde gespeichert. Wir melden uns innerhalb von 24 Stunden zur Aktivierung.
+    {% else %}
+      Ihr
+      <strong>
+        {% if plan_key == 'starter' %}KI-Starter{% elif plan_key == 'pro' %}KI-Professional{% else %}KI-Enterprise{% endif %}
+      </strong>-Plan ist jetzt aktiv.
+      Sie haben vollen Zugang zu allen Features.
+    {% endif %}
+  </p>
+
+  <!-- Plan details card -->
+  <div style="background:var(--bg-subtle); border:1.5px solid var(--border); border-radius:var(--radius-lg);
+              padding:1.5rem; margin-bottom:2rem; text-align:left;">
+    <div style="font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--slate); margin-bottom:1rem;">
+      Ihr Abonnement
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+      <div>
+        <div style="font-size:.8125rem; color:var(--slate);">Plan</div>
+        <div style="font-weight:700; color:var(--navy);">
+          {% if plan_key == 'starter' %}KI-Starter
+          {% elif plan_key == 'pro' %}KI-Professional
+          {% else %}KI-Enterprise{% endif %}
+        </div>
+      </div>
+      <div>
+        <div style="font-size:.8125rem; color:var(--slate);">Abrechnung</div>
+        <div style="font-weight:700; color:var(--navy);">
+          {{ 'Jährlich' if billing == 'annual' else 'Monatlich' }}
+        </div>
+      </div>
+      <div>
+        <div style="font-size:.8125rem; color:var(--slate);">Status</div>
+        <div><span class="badge badge-success">Aktiv</span></div>
+      </div>
+      {% if session_id %}
+      <div>
+        <div style="font-size:.8125rem; color:var(--slate);">Session-ID</div>
+        <div style="font-family:monospace; font-size:.8rem; color:var(--slate-light); word-break:break-all;">{{ session_id[:24] }}…</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- CTAs -->
+  <div style="display:flex; gap:.875rem; justify-content:center; flex-wrap:wrap;">
+    {% if session.get('logged_in') %}
+    <a href="/generate" class="btn btn-primary btn-lg">Zum Dashboard →</a>
+    {% else %}
+    <a href="/login" class="btn btn-primary btn-lg">Jetzt einloggen →</a>
+    {% endif %}
+    <a href="/" class="btn btn-outline btn-lg">Zurück zur Startseite</a>
+  </div>
+
+  <p style="margin-top:2rem; font-size:.8125rem; color:var(--slate-light); line-height:1.6;">
+    Fragen? <a href="mailto:support@immo-ai.de" style="color:var(--slate);">support@immo-ai.de</a>
+    {% if not error %}
+    &nbsp;·&nbsp; <a href="/billing/portal" style="color:var(--slate);">Abonnement verwalten</a>
+    {% endif %}
+  </p>
+
+</div>
+</div>
+{% endblock %}

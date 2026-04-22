@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Checkout (Test-Modus) — Immo AI{% endblock %}
+
+{% block content %}
+<div style="min-height:80vh; display:flex; align-items:center; justify-content:center; padding:2rem;">
+<div style="width:100%; max-width:480px;">
+
+  <!-- Mode banner -->
+  <div style="background:#fffbeb; border:1.5px solid #fde68a; border-radius:10px; padding:1rem 1.25rem;
+              display:flex; align-items:center; gap:.75rem; margin-bottom:2rem; font-size:.875rem; color:#92400e;">
+    <span style="font-size:1.25rem;">🧪</span>
+    <span><strong>Test-Modus aktiv.</strong> Es wird keine echte Zahlung ausgelöst. Stripe-Integration noch nicht konfiguriert.</span>
+  </div>
+
+  <div class="card">
+    <!-- Stripe-style header -->
+    <div style="text-align:center; margin-bottom:2rem; padding-bottom:1.5rem; border-bottom:1px solid var(--border);">
+      <div style="font-size:1.75rem; margin-bottom:.5rem;">💳</div>
+      <div style="font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--slate);">
+        Immo AI — Abonnement
+      </div>
+    </div>
+
+    <!-- Plan summary -->
+    <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:var(--radius);
+                padding:1.25rem; margin-bottom:1.5rem;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.5rem;">
+        <span style="font-weight:700; color:var(--navy);">
+          {% if plan_key == 'starter' %}KI-Starter{% elif plan_key == 'pro' %}KI-Professional{% else %}KI-Enterprise{% endif %}
+        </span>
+        <span class="badge badge-pending">
+          {{ billing|capitalize }}
+        </span>
+      </div>
+      <div style="font-size:2rem; font-weight:900; color:var(--navy); letter-spacing:-.04em;">
+        {% if plan_key == 'starter' %}
+          {% if billing == 'annual' %}249 €{% else %}299 €{% endif %}
+        {% elif plan_key == 'pro' %}
+          {% if billing == 'annual' %}499 €{% else %}599 €{% endif %}
+        {% else %}
+          {% if billing == 'annual' %}999 €{% else %}1.199 €{% endif %}
+        {% endif %}
+        <span style="font-size:1rem; font-weight:500; color:var(--slate);">/Monat</span>
+      </div>
+      {% if billing == 'annual' %}
+      <div style="font-size:.8125rem; color:var(--green); font-weight:600; margin-top:.25rem;">
+        ✓ Jahresplan — 2 Monate gratis
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Fake card form -->
+    <div style="margin-bottom:1.5rem;">
+      <div class="field" style="margin-bottom:1rem;">
+        <label>E-Mail</label>
+        <input type="email" id="pEmail" placeholder="ihre@email.de" value="">
+      </div>
+      <div class="field" style="margin-bottom:1rem;">
+        <label>Kartennummer <span style="color:var(--slate); font-weight:400; font-size:.8rem;">(Test)</span></label>
+        <input type="text" value="4242 4242 4242 4242" readonly
+               style="background:#f8fafc; color:var(--slate); cursor:default; font-family:monospace;">
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:.875rem;">
+        <div class="field">
+          <label>Ablaufdatum</label>
+          <input type="text" value="12/28" readonly style="background:#f8fafc; color:var(--slate); cursor:default;">
+        </div>
+        <div class="field">
+          <label>CVC</label>
+          <input type="text" value="424" readonly style="background:#f8fafc; color:var(--slate); cursor:default;">
+        </div>
+      </div>
+    </div>
+
+    <button onclick="confirmCheckout()" class="btn btn-primary"
+            style="width:100%; justify-content:center; padding:.9rem; font-size:1rem;" id="payBtn">
+      Abonnement starten (Test) →
+    </button>
+
+    <p style="text-align:center; font-size:.75rem; color:var(--slate-light); margin-top:1rem; line-height:1.6;">
+      🔒 Testzahlung · Keine echte Transaktion · Jederzeit kündbar
+    </p>
+  </div>
+
+  <div style="text-align:center; margin-top:1.25rem;">
+    <a href="{{ cancel_url }}" style="font-size:.875rem; color:var(--slate);">Abbrechen</a>
+  </div>
+
+</div>
+</div>
+
+<script>
+const SUCCESS_URL = {{ success_url | tojson }};
+const PLAN_KEY    = {{ plan_key | tojson }};
+const BILLING     = {{ billing | tojson }};
+const SESSION_ID  = {{ session_id | tojson }};
+
+function confirmCheckout() {
+  const btn = document.getElementById('payBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Wird verarbeitet…';
+  setTimeout(() => {
+    const url = SUCCESS_URL +
+      '?session_id=' + encodeURIComponent(SESSION_ID) +
+      '&plan=' + encodeURIComponent(PLAN_KEY) +
+      '&billing=' + encodeURIComponent(BILLING);
+    window.location.href = url;
+  }, 1800);
+}
+</script>
+{% endblock %}

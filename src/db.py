@@ -166,9 +166,26 @@ CREATE TABLE IF NOT EXISTS calendar_events (
     created_at     TEXT DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_calendar_date ON calendar_events(date);
-CREATE INDEX IF NOT EXISTS idx_signup_email   ON signup_requests(email);
-CREATE INDEX IF NOT EXISTS idx_usage_user     ON usage(username);
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+    username                TEXT NOT NULL UNIQUE,
+    stripe_customer_id      TEXT DEFAULT '',
+    stripe_subscription_id  TEXT DEFAULT '',
+    stripe_price_id         TEXT DEFAULT '',
+    plan_key                TEXT DEFAULT 'starter',
+    billing                 TEXT DEFAULT 'monthly',
+    status                  TEXT DEFAULT 'pending',
+    current_period_end      INTEGER,
+    cancel_at_period_end    INTEGER DEFAULT 0,
+    created_at              TEXT DEFAULT (datetime('now')),
+    updated_at              TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_calendar_date   ON calendar_events(date);
+CREATE INDEX IF NOT EXISTS idx_signup_email    ON signup_requests(email);
+CREATE INDEX IF NOT EXISTS idx_usage_user      ON usage(username);
+CREATE INDEX IF NOT EXISTS idx_sub_customer    ON subscriptions(stripe_customer_id);
+CREATE INDEX IF NOT EXISTS idx_sub_stripe_sub  ON subscriptions(stripe_subscription_id);
 """
 
 _POSTGRES_DDL = """
@@ -222,9 +239,26 @@ CREATE TABLE IF NOT EXISTS calendar_events (
     created_at     TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_calendar_date ON calendar_events(date);
-CREATE INDEX IF NOT EXISTS idx_signup_email   ON signup_requests(email);
-CREATE INDEX IF NOT EXISTS idx_usage_user     ON usage(username);
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id                      SERIAL PRIMARY KEY,
+    username                TEXT NOT NULL UNIQUE,
+    stripe_customer_id      TEXT DEFAULT '',
+    stripe_subscription_id  TEXT DEFAULT '',
+    stripe_price_id         TEXT DEFAULT '',
+    plan_key                TEXT DEFAULT 'starter',
+    billing                 TEXT DEFAULT 'monthly',
+    status                  TEXT DEFAULT 'pending',
+    current_period_end      BIGINT,
+    cancel_at_period_end    SMALLINT DEFAULT 0,
+    created_at              TIMESTAMPTZ DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_calendar_date   ON calendar_events(date);
+CREATE INDEX IF NOT EXISTS idx_signup_email    ON signup_requests(email);
+CREATE INDEX IF NOT EXISTS idx_usage_user      ON usage(username);
+CREATE INDEX IF NOT EXISTS idx_sub_customer    ON subscriptions(stripe_customer_id);
+CREATE INDEX IF NOT EXISTS idx_sub_stripe_sub  ON subscriptions(stripe_subscription_id);
 """
 
 

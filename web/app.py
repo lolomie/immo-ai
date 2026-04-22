@@ -192,6 +192,182 @@ def google_login():
     return redirect(url)
 
 
+# ── Billing / Stripe ──────────────────────────────────────────────────────────
+
+@app.route("/billing/checkout", methods=["POST"])
+@limiter.limit("10 per minute")
+def billing_checkout():
+    """
+    Create a Stripe Checkout Session and redirect the user to it.
+    Works in all modes: placeholder (simulated), test (Stripe sandbox), live.
+    """
+    from src.stripe_client import create_checkout_session, get_config
+    data     = request.get_json() or {}
+    plan_key = data.get("plan", "pro").strip().lower()
+    billing  = data.get("billing", "monthly").strip().lower()
+    email    = data.get("email", "").strip()
+    username = _username()
+
+    if plan_key not in ("starter", "pro", "business"):
+        return jsonify({"error": "Ungültiger Plan."}), 400
+    if billing not in ("monthly", "annual"):
+        return jsonify({"error": "Ungültige Abrechnungsperiode."}), 400
+
+    base = request.host_url.rstrip("/")
+    try:
+        result = create_checkout_session(
+            plan_key=plan_key,
+            billing=billing,
+            email=email or (get_user_email(username) if session.get("logged_in") else ""),
+            username=username,
+            success_url=f"{base}/billing/success",
+            cancel_url=f"{base}/billing/cancel",
+        )
+        return jsonify(result)
+    except Exception as e:
+        app.logger.error("Checkout session error: %s", e)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/billing/placeholder-checkout")
+def billing_placeholder_checkout():
+    """Simulated checkout page shown only in placeholder mode."""
+    from src.stripe_client import is_placeholder
+    if not is_placeholder():
+        return redirect(url_for("index"))
+    plan_key   = request.args.get("plan", "pro")
+    billing    = request.args.get("billing", "monthly")
+    session_id = request.args.get("session_id", "")
+    success_url= request.args.get("success_url", "/billing/success")
+    cancel_url = request.args.get("cancel_url", "/billing/cancel")
+    return render_template(
+        "billing_placeholder.html",
+        plan_key=plan_key, billing=billing,
+        session_id=session_id,
+        success_url=success_url, cancel_url=cancel_url,
+        auth_required=False,
+    )
+
+
+@app.route("/billing/success")
+def billing_success():
+    """Post-checkout success page. Activates subscription."""
+    from src.stripe_client import verify_checkout_session, _upsert_subscription, _sync_user_plan
+    session_id = request.args.get("session_id", "")
+    plan_key   = request.args.get("plan", "")
+    billing    = request.args.get("billing", "monthly")
+
+    subscription = None
+    error = None
+
+    if session_id:
+        try:
+            sub_data = verify_checkout_session(session_id)
+            username = sub_data.get("username") or _username()
+            if not sub_data.get("plan_key") and plan_key:
+                sub_data["plan_key"] = plan_key
+            if username and username != "anonymous":
+                from src.stripe_client import _upsert_subscription as _upsert
+                _upsert(username, {
+                    "stripe_customer_id":     sub_data.get("stripe_customer_id", ""),
+                    "stripe_subscription_id": sub_data.get("stripe_subscription_id", ""),
+                    "stripe_price_id":        sub_data.get("stripe_price_id", ""),
+                    "plan_key":               sub_data.get("plan_key", plan_key),
+                    "billing":                billing,
+                    "status":                 "active",
+                })
+                from src.stripe_client import _sync_user_plan as _sync
+                _sync(username, sub_data.get("plan_key", plan_key))
+                if session.get("logged_in"):
+                    session["plan"] = sub_data.get("plan_key", plan_key)
+            subscription = sub_data
+        except Exception as e:
+            app.logger.error("Success page verification error: %s", e)
+            error = str(e)
+
+    return render_template(
+        "billing_success.html",
+        session_id=session_id,
+        plan_key=plan_key or (subscription or {}).get("plan_key", "pro"),
+        billing=billing,
+        subscription=subscription,
+        error=error,
+        auth_required=False,
+    )
+
+
+@app.route("/billing/cancel")
+def billing_cancel():
+    return render_template("billing_cancel.html", auth_required=False)
+
+
+@app.route("/billing/portal")
+@login_required
+def billing_portal():
+    """Redirect to Stripe Customer Portal for subscription management."""
+    from src.stripe_client import create_portal_session
+    from src.db import fetchone
+    username = _username()
+    sub = fetchone("SELECT stripe_customer_id FROM subscriptions WHERE username = ?", (username,))
+    customer_id = (sub or {}).get("stripe_customer_id", "")
+    return_url = request.host_url.rstrip("/") + "/generate"
+    try:
+        url = create_portal_session(customer_id, return_url)
+        return redirect(url)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/billing/status")
+@api_login_required
+def api_billing_status():
+    """Return the current user's subscription status."""
+    from src.db import fetchone
+    from src.stripe_client import get_config
+    username = _username()
+    sub = fetchone(
+        "SELECT plan_key, billing, status, current_period_end, cancel_at_period_end, "
+        "stripe_subscription_id, updated_at FROM subscriptions WHERE username = ?",
+        (username,),
+    )
+    return jsonify({
+        "username":    username,
+        "plan":        _plan(),
+        "subscription": sub,
+        "stripe_mode": get_config()["mode"],
+    })
+
+
+@app.route("/api/billing/webhook", methods=["POST"])
+def billing_webhook():
+    """
+    Stripe webhook endpoint.
+    Register this URL in Stripe Dashboard → Webhooks:
+      https://yourdomain.com/api/billing/webhook
+    """
+    from src.stripe_client import verify_webhook, handle_webhook_event
+    payload    = request.get_data()
+    sig_header = request.headers.get("Stripe-Signature", "")
+    try:
+        event  = verify_webhook(payload, sig_header)
+        result = handle_webhook_event(event)
+        app.logger.info("Webhook: %s → %s", event.get("type"), result)
+        return jsonify({"received": True, "result": result})
+    except ValueError as e:
+        app.logger.warning("Webhook rejected: %s", e)
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        app.logger.error("Webhook error: %s", e)
+        return jsonify({"error": "internal error"}), 500
+
+
+@app.route("/api/billing/config")
+def api_billing_config():
+    """Return non-sensitive Stripe config for the frontend."""
+    from src.stripe_client import get_config
+    return jsonify(get_config())
+
+
 @app.route("/auth/google/callback")
 def google_callback():
     error = request.args.get("error")

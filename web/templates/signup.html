@@ -4,7 +4,8 @@
 {% block content %}
 <div class="signup-wrap">
 
-  <a href="/#preise" style="display:inline-flex;align-items:center;gap:.4rem;font-size:.875rem;color:var(--slate);margin-bottom:2rem;">
+  <a href="/#preise" style="display:inline-flex;align-items:center;gap:.4rem;font-size:.875rem;
+     color:var(--slate);margin-bottom:2rem;text-decoration:none;">
     ← Zurück zu den Preisen
   </a>
 
@@ -14,20 +15,19 @@
   </div>
 
   <h1 style="font-size:2rem;font-weight:900;color:var(--navy);letter-spacing:-.04em;margin-bottom:.5rem;">
-    Demo anfragen
+    Jetzt starten
   </h1>
-  <p style="color:var(--slate);font-size:1rem;margin-bottom:2rem;line-height:1.6;">
-    Wir richten Immo AI persönlich für Sie ein. Erstgespräch kostenlos, Dauer ca. 20 Minuten.
-  </p>
 
   <!-- Plan summary -->
-  <div class="signup-summary">
+  <div class="signup-summary" style="margin-bottom:1.75rem;">
     <div class="signup-summary-item">
-      <strong>{{ plan.setup_fee }} €</strong>
-      Einrichtungsgebühr (einmalig)
+      <strong>0 €</strong>
+      Einrichtungsgebühr
     </div>
     <div class="signup-summary-item">
-      <strong>{{ plan.monthly_price }} €</strong>
+      <strong id="displayPrice">
+        {{ plan.monthly_price }} €
+      </strong>
       pro Monat
     </div>
     <div class="signup-summary-item">
@@ -36,113 +36,156 @@
     </div>
   </div>
 
+  <!-- Billing toggle -->
+  <div style="display:flex; gap:.375rem; background:var(--bg-subtle); border:1.5px solid var(--border);
+              border-radius:999px; padding:.3rem; margin-bottom:1.75rem; width:fit-content;">
+    <button class="billing-btn active" id="btnMonthly" onclick="setBilling('monthly')">
+      Monatlich
+    </button>
+    <button class="billing-btn" id="btnAnnual" onclick="setBilling('annual')">
+      Jährlich <span class="billing-save">2 Monate gratis</span>
+    </button>
+  </div>
+
   <!-- Form -->
-  <form id="signupForm" onsubmit="submitSignup(event)" novalidate>
-    <div class="field">
+  <form id="signupForm" onsubmit="startCheckout(event)" novalidate>
+    <div class="field" style="margin-bottom:1rem;">
       <label>Ihr Name <span style="color:var(--red)">*</span></label>
       <input type="text" id="fname" placeholder="Max Mustermann" required autocomplete="name">
     </div>
-    <div class="field">
+    <div class="field" style="margin-bottom:1rem;">
       <label>E-Mail-Adresse <span style="color:var(--red)">*</span></label>
       <input type="email" id="femail" placeholder="max@maklerbüro.de" required autocomplete="email">
     </div>
-    <div class="field">
-      <label>Unternehmen / Maklerbüro</label>
+    <div class="field" style="margin-bottom:1rem;">
+      <label>Unternehmen / Maklerbüro <span style="color:var(--slate);font-weight:400;">(optional)</span></label>
       <input type="text" id="fcompany" placeholder="Mustermann Immobilien GmbH" autocomplete="organization">
     </div>
-    <div class="field">
-      <label>Telefonnummer</label>
+    <div class="field" style="margin-bottom:1rem;">
+      <label>Telefonnummer <span style="color:var(--slate);font-weight:400;">(optional)</span></label>
       <input type="tel" id="fphone" placeholder="+49 170 123 4567" autocomplete="tel">
     </div>
 
-    <div id="formError" class="alert alert-error" style="display:none;margin-bottom:1rem;"></div>
-    <div id="formSuccess" style="display:none;"></div>
+    <!-- GDPR consent -->
+    <div style="display:flex; align-items:flex-start; gap:.75rem; margin:1.25rem 0; padding:1rem;
+                background:var(--bg-subtle); border:1px solid var(--border); border-radius:var(--radius);">
+      <input type="checkbox" id="fgdpr" style="margin-top:.2rem; width:16px; height:16px; flex-shrink:0; cursor:pointer;" required>
+      <label for="fgdpr" style="font-size:.8125rem; color:var(--slate); line-height:1.6; cursor:pointer;">
+        Ich stimme der Verarbeitung meiner Daten gemäß der
+        <a href="/impressum" style="color:var(--blue);">Datenschutzerklärung</a> zu.
+        Meine Daten werden ausschließlich zur Vertragsabwicklung und Kommunikation genutzt. *
+      </label>
+    </div>
 
-    <button type="submit" class="btn btn-primary" style="width:100%;padding:.875rem;font-size:1rem;margin-top:.5rem;" id="submitBtn">
-      Demo kostenlos anfragen →
+    <div id="formError" class="alert alert-error" style="display:none; margin-bottom:1rem;"></div>
+
+    <button type="submit" class="btn btn-primary"
+            style="width:100%; justify-content:center; padding:.9rem; font-size:1.0625rem;" id="submitBtn">
+      Weiter zum sicheren Checkout →
     </button>
   </form>
 
-  <p style="margin-top:1.5rem;font-size:.8125rem;color:var(--slate-light);text-align:center;line-height:1.6;">
-    Keine automatische Vertragsschließung. Wir melden uns innerhalb von 24 Stunden.<br>
-    Ihre Daten werden ausschließlich zur Kontaktaufnahme verwendet (DSGVO).
+  <p style="margin-top:1.25rem; font-size:.8rem; color:var(--slate-light); text-align:center; line-height:1.6;">
+    🔒 Sichere Zahlung · 0 € Einrichtungsgebühr · Jederzeit monatlich kündbar
   </p>
 
   <!-- Plan switch -->
-  <div style="margin-top:3rem;padding-top:2rem;border-top:1px solid var(--border);">
-    <p style="font-size:.875rem;color:var(--slate);margin-bottom:1rem;font-weight:600;">Anderen Plan wählen:</p>
-    <div style="display:flex;gap:.75rem;flex-wrap:wrap;">
+  <div style="margin-top:2.5rem; padding-top:2rem; border-top:1px solid var(--border);">
+    <p style="font-size:.875rem; color:var(--slate); margin-bottom:.875rem; font-weight:600;">Anderen Plan wählen:</p>
+    <div style="display:flex; gap:.75rem; flex-wrap:wrap;">
       {% for key, p in all_plans.items() %}
+      {% if key != 'admin' %}
       <a href="/signup?plan={{ key }}"
-         style="padding:.5rem 1rem;border-radius:var(--radius);border:1.5px solid {% if key == plan_key %}var(--blue){% else %}var(--border){% endif %};
-                font-size:.875rem;font-weight:{% if key == plan_key %}700{% else %}500{% endif %};
+         style="padding:.5rem 1rem; border-radius:var(--radius); text-decoration:none;
+                border:1.5px solid {% if key == plan_key %}var(--blue){% else %}var(--border){% endif %};
+                font-size:.875rem; font-weight:{% if key == plan_key %}700{% else %}500{% endif %};
                 color:{% if key == plan_key %}var(--blue){% else %}var(--slate){% endif %};
                 background:{% if key == plan_key %}var(--blue-light){% else %}var(--bg){% endif %};">
         {{ p.name }} — {{ p.monthly_price }} €/Mo
       </a>
+      {% endif %}
       {% endfor %}
     </div>
   </div>
+
 </div>
 
 <script>
-async function submitSignup(e) {
+const PLAN_KEY     = {{ plan_key | tojson }};
+const PRICES       = {
+  starter:  { monthly: 299, annual: 249 },
+  pro:      { monthly: 599, annual: 499 },
+  business: { monthly: 1199, annual: 999 },
+};
+let currentBilling = 'monthly';
+
+function setBilling(b) {
+  currentBilling = b;
+  document.getElementById('btnMonthly').classList.toggle('active', b === 'monthly');
+  document.getElementById('btnAnnual').classList.toggle('active', b === 'annual');
+  const price = PRICES[PLAN_KEY]?.[b] ?? '';
+  document.getElementById('displayPrice').textContent = price + ' €';
+}
+
+async function startCheckout(e) {
   e.preventDefault();
-  const btn = document.getElementById('submitBtn');
-  const errEl = document.getElementById('formError');
-  const okEl = document.getElementById('formSuccess');
+  const errEl  = document.getElementById('formError');
+  const btn    = document.getElementById('submitBtn');
   errEl.style.display = 'none';
-  okEl.style.display = 'none';
 
   const name  = document.getElementById('fname').value.trim();
   const email = document.getElementById('femail').value.trim();
-  if (!name || !email) {
-    errEl.textContent = 'Bitte Name und E-Mail ausfüllen.';
-    errEl.style.display = 'block';
-    return;
-  }
+  const gdpr  = document.getElementById('fgdpr').checked;
+
+  if (!name)  return showErr('Bitte Ihren Namen eingeben.');
+  if (!email) return showErr('Bitte Ihre E-Mail-Adresse eingeben.');
+  if (!gdpr)  return showErr('Bitte der Datenschutzerklärung zustimmen.');
 
   btn.disabled = true;
-  btn.textContent = 'Wird gesendet…';
+  btn.innerHTML = '<span class="spinner"></span> Weiterleitung…';
 
+  // 1. Save contact info
   try {
-    const res = await fetch('/api/signup', {
+    await fetch('/api/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name,
-        email,
-        company: document.getElementById('fcompany').value.trim(),
-        phone:   document.getElementById('fphone').value.trim(),
-        plan:    '{{ plan_key }}',
+        name, email,
+        company:      document.getElementById('fcompany').value.trim(),
+        phone:        document.getElementById('fphone').value.trim(),
+        plan:         PLAN_KEY,
+        gdpr_consent: true,
       }),
+    });
+  } catch (_) { /* best-effort */ }
+
+  // 2. Create Stripe checkout session
+  try {
+    const res = await fetch('/billing/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan: PLAN_KEY, billing: currentBilling, email }),
     });
     const data = await res.json();
     if (!res.ok) {
-      errEl.textContent = data.error || 'Fehler beim Senden.';
-      errEl.style.display = 'block';
+      showErr(data.error || 'Checkout konnte nicht gestartet werden.');
       btn.disabled = false;
-      btn.textContent = 'Demo kostenlos anfragen →';
+      btn.textContent = 'Weiter zum sicheren Checkout →';
       return;
     }
-    document.getElementById('signupForm').style.display = 'none';
-    okEl.innerHTML = `
-      <div style="text-align:center;padding:2.5rem 1rem;">
-        <div style="font-size:3rem;margin-bottom:1rem;">✅</div>
-        <h2 style="font-size:1.5rem;font-weight:800;color:var(--navy);margin-bottom:.75rem;">Anfrage erhalten!</h2>
-        <p style="color:var(--slate);line-height:1.7;max-width:380px;margin:0 auto 1.5rem;">
-          Vielen Dank, <strong>${name}</strong>. Wir melden uns innerhalb von 24 Stunden
-          unter <strong>${email}</strong> für Ihr persönliches Demo-Gespräch.
-        </p>
-        <a href="/" class="btn btn-outline">Zurück zur Startseite</a>
-      </div>`;
-    okEl.style.display = 'block';
+    window.location.href = data.checkout_url;
   } catch (err) {
-    errEl.textContent = 'Netzwerkfehler. Bitte erneut versuchen.';
-    errEl.style.display = 'block';
+    showErr('Netzwerkfehler. Bitte erneut versuchen.');
     btn.disabled = false;
-    btn.textContent = 'Demo kostenlos anfragen →';
+    btn.textContent = 'Weiter zum sicheren Checkout →';
   }
+}
+
+function showErr(msg) {
+  const el = document.getElementById('formError');
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 </script>
 {% endblock %}
