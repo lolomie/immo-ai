@@ -6,7 +6,7 @@
   <title>{% block title %}Immo AI{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800;14..32,900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800;14..32,900&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
@@ -20,7 +20,9 @@
     <li><a href="/review">Review</a></li>
     <li><a href="/calendar">Kalender</a></li>
     <li><a href="/about">Über uns</a></li>
+    {% if not session.get('logged_in') %}
     <li><a class="nav-cta" href="/#kontakt">Demo anfragen</a></li>
+    {% endif %}
     {% if session.get('logged_in') %}
     <li><a href="/generate" class="nav-cta" style="background:var(--green);">Dashboard</a></li>
     {% if session.get('username') == 'admin' %}

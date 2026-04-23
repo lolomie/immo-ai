@@ -712,22 +712,6 @@
         <div class="expose-content">
           <div class="expose-text" id="exposeText" spellcheck="false"></div>
 
-          <!-- Features grid -->
-          <div class="features-section" id="featuresSection" style="display:none;">
-            <div class="features-heading">Ausstattungsmerkmale</div>
-            <div class="features-grid" id="featureGrid"></div>
-          </div>
-
-          <!-- Actions -->
-          <div class="expose-actions">
-            <a href="/review" class="act-btn primary">→ Zur Review</a>
-            <button class="act-btn" id="copyBtn" onclick="copyExpose()">Kopieren</button>
-            <button class="act-btn" id="editBtn" onclick="toggleEdit()">Bearbeiten</button>
-            <button class="act-btn" onclick="downloadTxt()">↓ .txt</button>
-            <button class="act-btn" onclick="window.print()">Drucken</button>
-            <button class="act-btn" onclick="resetForm()">↺ Neu</button>
-          </div>
-
           <div class="ai-note">
             <span style="flex-shrink:0;opacity:.7;">⚠</span>
             <span>KI-generiertes Exposé — vor Veröffentlichung sorgfältig prüfen.</span>
@@ -752,7 +736,8 @@
               <a href="/review" class="cta-review">Zur Review →</a>
               <div class="sidebar-sep">Exportieren</div>
               <div class="sidebar-btns">
-                <button class="sb-btn" onclick="copyExpose()">Kopieren</button>
+                <button class="sb-btn" id="editBtn" onclick="toggleEdit()">Bearbeiten</button>
+                <button class="sb-btn" id="copyBtn" onclick="copyExpose()">Kopieren</button>
                 <button class="sb-btn" onclick="downloadTxt()">↓ .txt</button>
                 <button class="sb-btn" onclick="window.print()">Drucken</button>
               </div>
