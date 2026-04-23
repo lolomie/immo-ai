@@ -3,7 +3,13 @@ const list        = document.getElementById('appointmentList');
 const countBadge  = document.getElementById('apptCount');
 const formError   = document.getElementById('formError');
 const formSuccess = document.getElementById('formSuccess');
+const gcalSuccess = document.getElementById('gcalSuccess');
+const gcalWarning = document.getElementById('gcalWarning');
 const submitBtn   = document.getElementById('submitBtn');
+const submitLabel = document.getElementById('submitBtnLabel');
+const formTitle   = document.getElementById('formTitle');
+const editingId   = document.getElementById('editingId');
+const cancelBtn   = document.getElementById('cancelEditBtn');
 
 const TODAY = new Date().toISOString().slice(0, 10);
 
@@ -91,11 +97,18 @@ function renderCard(a) {
         ? `<div class="appt-notes">${escHtml(a.notes)}</div>`
         : ''}
     </div>
-    <button class="btn btn-outline btn-sm del-btn"
-      style="color:var(--red); border-color:var(--red-border); flex-shrink:0;"
-      onclick="deleteAppointment('${escHtml(a.appointment_id)}')">
-      Löschen
-    </button>
+    <div style="display:flex; flex-direction:column; gap:.5rem; flex-shrink:0;">
+      <button class="btn btn-outline btn-sm del-btn"
+        style="color:var(--blue); border-color:var(--blue);"
+        onclick="editAppointment(${JSON.stringify(a)})">
+        Bearbeiten
+      </button>
+      <button class="btn btn-outline btn-sm del-btn"
+        style="color:var(--red); border-color:var(--red-border);"
+        onclick="deleteAppointment('${escHtml(a.appointment_id)}')">
+        Löschen
+      </button>
+    </div>
   </div>`;
 }
 
@@ -111,19 +124,70 @@ function showError(msg) {
   formError.textContent = msg;
   formError.style.display = 'block';
   formSuccess.style.display = 'none';
+  gcalSuccess.style.display = 'none';
+  gcalWarning.style.display = 'none';
   formError.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-function showSuccess() {
+function showSuccess(gcalSynced, gcalConfigured) {
   formSuccess.style.display = 'block';
   formError.style.display = 'none';
-  setTimeout(() => { formSuccess.style.display = 'none'; }, 3500);
+
+  if (gcalSynced) {
+    gcalSuccess.style.display = 'block';
+    gcalWarning.style.display = 'none';
+  } else if (gcalConfigured) {
+    gcalWarning.style.display = 'block';
+    gcalSuccess.style.display = 'none';
+  } else {
+    gcalSuccess.style.display = 'none';
+    gcalWarning.style.display = 'none';
+  }
+
+  setTimeout(() => {
+    formSuccess.style.display = 'none';
+    gcalSuccess.style.display = 'none';
+    gcalWarning.style.display = 'none';
+  }, 5000);
+}
+
+function editAppointment(a) {
+  editingId.value = a.appointment_id;
+  form.client_name.value    = a.client_name    || '';
+  form.client_contact.value = a.client_contact || '';
+  form.date.value           = a.date           || '';
+  form.time.value           = a.time           || '';
+  form.type.value           = a.type           || 'Besichtigung';
+  form.property_id.value    = a.property_id    || '';
+  form.notes.value          = a.notes          || '';
+
+  formTitle.textContent   = 'Termin bearbeiten';
+  submitLabel.textContent = 'Änderungen speichern';
+  cancelBtn.style.display = 'inline-flex';
+
+  formSuccess.style.display = 'none';
+  gcalSuccess.style.display = 'none';
+  gcalWarning.style.display = 'none';
+  formError.style.display   = 'none';
+
+  form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function cancelEdit() {
+  editingId.value = '';
+  form.reset();
+  formTitle.textContent   = 'Neuen Termin erstellen';
+  submitLabel.textContent = 'Termin speichern';
+  cancelBtn.style.display = 'none';
+  formError.style.display = 'none';
 }
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
-  formError.style.display = 'none';
+  formError.style.display   = 'none';
   formSuccess.style.display = 'none';
+  gcalSuccess.style.display = 'none';
+  gcalWarning.style.display = 'none';
 
   const client_name = form.client_name.value.trim();
   const date = form.date.value;
@@ -136,38 +200,52 @@ form.addEventListener('submit', async (e) => {
   submitBtn.disabled = true;
   submitBtn.innerHTML = '<span class="spinner"></span> Speichern…';
 
+  const currentEditId = editingId.value;
+  const isEditing = !!currentEditId;
+  const url = isEditing ? '/calendar/update' : '/calendar/create';
+
+  const payload = {
+    property_id:    form.property_id.value.trim(),
+    client_name,
+    client_contact: form.client_contact.value.trim(),
+    date,
+    time,
+    type:  form.type.value,
+    notes: form.notes.value.trim(),
+  };
+  if (isEditing) payload.appointment_id = currentEditId;
+
   try {
-    const res = await fetch('/calendar/create', {
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        property_id:    form.property_id.value.trim(),
-        client_name,
-        client_contact: form.client_contact.value.trim(),
-        date,
-        time,
-        type:  form.type.value,
-        notes: form.notes.value.trim(),
-      }),
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
     if (!res.ok) {
       showError(data.error || 'Fehler beim Speichern.');
     } else {
-      form.reset();
-      showSuccess();
+      cancelEdit();
+      showSuccess(data.gcal_synced || false, data.gcal_configured || false);
       loadAppointments();
     }
   } catch {
     showError('Netzwerkfehler – bitte erneut versuchen.');
   } finally {
     submitBtn.disabled = false;
-    submitBtn.textContent = 'Termin speichern';
+    submitBtn.innerHTML = `<span id="submitBtnLabel">${isEditing ? 'Änderungen speichern' : 'Termin speichern'}</span>`;
+    // Re-grab label reference after innerHTML reset
+    const newLabel = document.getElementById('submitBtnLabel');
+    if (!isEditing) {
+      submitBtn.innerHTML = '<span id="submitBtnLabel">Termin speichern</span>';
+    }
   }
 });
 
 async function deleteAppointment(id) {
   if (!confirm('Termin wirklich löschen?')) return;
+
+  if (editingId.value === id) cancelEdit();
 
   const card = document.getElementById('appt-' + id);
   if (card) {

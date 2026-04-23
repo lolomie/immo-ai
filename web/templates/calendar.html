@@ -91,13 +91,23 @@
   <div id="formSuccess" class="alert alert-success reveal" style="display:none; margin-bottom:1.5rem;">
     ✓ Termin erfolgreich gespeichert.
   </div>
+  <div id="gcalSuccess" class="alert alert-success reveal" style="display:none; margin-bottom:1.5rem;">
+    ✓ Im Google Kalender gespeichert.
+  </div>
+  <div id="gcalWarning" class="alert reveal" style="display:none; margin-bottom:1.5rem; background:var(--amber-light,#fffbeb); border:1px solid var(--amber-border,#fde68a); color:var(--amber,#92400e);">
+    ⚠ Termin gespeichert — Google Kalender Synchronisation fehlgeschlagen. Bitte Kalender-ID in den Profileinstellungen prüfen.
+  </div>
   <div id="formError" class="alert alert-error reveal" style="display:none; margin-bottom:1.5rem;"></div>
 
   <div class="cal-layout">
 
     <!-- Form -->
     <div class="cal-form-card reveal">
-      <h2>Neuen Termin erstellen</h2>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.25rem;">
+        <h2 id="formTitle" style="margin-bottom:0;">Neuen Termin erstellen</h2>
+        <button type="button" id="cancelEditBtn" class="btn btn-outline btn-sm" style="display:none;" onclick="cancelEdit()">Abbrechen</button>
+      </div>
+      <input type="hidden" id="editingId" value="">
       <form id="appointmentForm" novalidate>
         <div class="form-two">
 
@@ -141,7 +151,7 @@
 
         </div>
         <button type="submit" class="btn btn-primary" id="submitBtn" style="margin-top:1.25rem; width:100%; justify-content:center;">
-          Termin speichern
+          <span id="submitBtnLabel">Termin speichern</span>
         </button>
       </form>
     </div>

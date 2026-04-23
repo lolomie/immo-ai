@@ -155,6 +155,27 @@ def get_appointment_by_id(appointment_id: str) -> Optional[Appointment]:
     return Appointment.from_dict(row) if row else None
 
 
+def update_appointment(appointment_id: str, data: dict) -> Optional[Appointment]:
+    from src.db import fetchone, execute
+    existing = fetchone("SELECT * FROM calendar_events WHERE appointment_id = ?", (appointment_id,))
+    if not existing:
+        return None
+    merged = dict(existing)
+    for k in ("property_id", "client_name", "client_contact", "date", "time", "type", "notes"):
+        if k in data:
+            merged[k] = data[k]
+    _validate(merged)
+    execute(
+        """UPDATE calendar_events
+           SET property_id=?, client_name=?, client_contact=?, date=?, time=?, type=?, notes=?
+           WHERE appointment_id=?""",
+        (merged["property_id"], merged["client_name"], merged["client_contact"],
+         merged["date"], merged["time"], merged["type"], merged["notes"],
+         appointment_id),
+    )
+    return Appointment.from_dict(merged)
+
+
 def check_conflicts(target_date: str, time: str, exclude_id: Optional[str] = None) -> List[Appointment]:
     from src.db import fetchall
     rows = fetchall(
