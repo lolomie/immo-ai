@@ -21,9 +21,15 @@
   </p>
 
   <div class="hero-actions">
+    {% if session.get('logged_in') %}
+    <a href="/generate" class="btn btn-primary btn-lg hero-cta">
+      Zum Dashboard →
+    </a>
+    {% else %}
     <a href="/signup?plan=pro" class="btn btn-primary btn-lg hero-cta">
       Jetzt kostenlos starten →
     </a>
+    {% endif %}
     <a href="#wie-es-funktioniert" class="btn btn-outline-white btn-lg">
       So funktioniert's
     </a>
@@ -264,7 +270,11 @@
           <li class="feature-disabled">WhatsApp-Benachrichtigungen</li>
           <li class="feature-disabled">Lead-Qualifizierung</li>
         </ul>
+        {% if session.get('logged_in') %}
+        <a href="/generate" class="btn btn-outline btn-pricing">Zum Dashboard →</a>
+        {% else %}
         <a href="/signup?plan=starter" class="btn btn-outline btn-pricing">Jetzt starten</a>
+        {% endif %}
       </div>
 
       <!-- Professional (featured) -->
@@ -291,7 +301,11 @@
           <li class="feature-disabled">Individuelle KI-Tonalität</li>
           <li class="feature-disabled">CRM-Integration</li>
         </ul>
+        {% if session.get('logged_in') %}
+        <a href="/generate" class="btn btn-primary btn-pricing">Zum Dashboard →</a>
+        {% else %}
         <a href="/signup?plan=pro" class="btn btn-primary btn-pricing">Jetzt starten →</a>
+        {% endif %}
       </div>
 
       <!-- Enterprise -->
@@ -317,7 +331,11 @@
           <li>Branding-Anpassung</li>
           <li>Team-Einweisung inklusive</li>
         </ul>
+        {% if session.get('logged_in') %}
+        <a href="/generate" class="btn btn-outline btn-pricing">Zum Dashboard →</a>
+        {% else %}
         <a href="/signup?plan=business" class="btn btn-outline btn-pricing">Demo anfragen</a>
+        {% endif %}
       </div>
     </div>
 
@@ -476,12 +494,18 @@
       Die meisten Nutzer sind innerhalb von 48 Stunden produktiv.
     </p>
     <div class="cta-actions">
+      {% if session.get('logged_in') %}
+      <a href="/generate" class="btn btn-primary btn-lg">
+        Zum Dashboard →
+      </a>
+      {% else %}
       <a href="/signup?plan=pro" class="btn btn-primary btn-lg">
         Jetzt kostenlos starten →
       </a>
       <a href="mailto:demo@immo-ai.de" class="btn btn-outline-white btn-lg">
         Demo anfragen
       </a>
+      {% endif %}
     </div>
     <p style="margin-top:2rem; font-size:.875rem; color:rgba(148,163,184,.65);">
       0 € Setup · Monatlich kündbar · In 48h einsatzbereit
