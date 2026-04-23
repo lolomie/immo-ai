@@ -791,41 +791,49 @@ def calendar_create():
     if not data:
         return jsonify({"error": "Kein JSON erhalten"}), 400
     try:
-        appt = create_appointment(data)
+        username_now = _username()
+        appt = create_appointment(data, username=username_now)
 
-        # Sync to Sheets + Google Calendar in background
-        _username_snap = _username()
         _appt_dict = appt.to_dict()
-        def _post_create():
-            agent_email = get_user_email(_username_snap)
-            agent_name  = _username_snap
 
-            # 1. Write to Google Sheets Termine tab
+        def _post_create():
+            agent_email = get_user_email(username_now)
+            agent_name  = username_now
+
+            # 1. Google Sheets
             try:
                 from src.sheets_client import append_termin_row
                 append_termin_row(_appt_dict, agent_email, agent_name)
             except Exception as e:
                 app.logger.warning("Sheets termin sync failed: %s", e)
 
-            # 2. Sync to Google Calendar (use user's own calendar if set)
+            # 2. Google Calendar
             try:
                 from src.gcal_client import create_event
                 from src.config import GOOGLE_SERVICE_ACCOUNT_FILE, GOOGLE_SERVICE_ACCOUNT_JSON
-                user_gcal_id = get_user_gcal_id(_username_snap)
+                user_gcal_id = get_user_gcal_id(username_now)
+                app.logger.info(
+                    "GCal sync: user=%s gcal_id=%r sa_file=%r sa_json_set=%s",
+                    username_now, user_gcal_id,
+                    GOOGLE_SERVICE_ACCOUNT_FILE,
+                    bool(GOOGLE_SERVICE_ACCOUNT_JSON),
+                )
                 if user_gcal_id and (GOOGLE_SERVICE_ACCOUNT_FILE or GOOGLE_SERVICE_ACCOUNT_JSON):
+                    from datetime import datetime as _dt, timedelta as _td
                     dt_start = f"{_appt_dict['date']}T{_appt_dict['time']}:00"
-                    from datetime import datetime, timedelta
-                    dt_end = (datetime.fromisoformat(dt_start) + timedelta(hours=1)).isoformat()
+                    dt_end = (_dt.fromisoformat(dt_start) + _td(hours=1)).isoformat()
                     title = f"{_appt_dict['type']} – {_appt_dict['client_name']}"
                     if _appt_dict.get("property_id"):
                         title += f" ({_appt_dict['property_id']})"
-                    desc = f"Kunde: {_appt_dict['client_name']}"
+                    desc = f"Makler: {agent_name}"
+                    if agent_email:
+                        desc += f" ({agent_email})"
+                    desc += f"\nKunde: {_appt_dict['client_name']}"
                     if _appt_dict.get("client_contact"):
                         desc += f"\nKontakt: {_appt_dict['client_contact']}"
                     if _appt_dict.get("notes"):
                         desc += f"\nNotizen: {_appt_dict['notes']}"
-                    attendees = [a for a in [agent_email] if a]
-                    gcal_id = create_event(
+                    gcal_event_id = create_event(
                         title=title,
                         start_dt=dt_start,
                         end_dt=dt_end,
@@ -834,9 +842,53 @@ def calendar_create():
                         appointment_id=_appt_dict["appointment_id"],
                         calendar_id=user_gcal_id,
                     )
-                    app.logger.info("GCal event created: %s for appt %s", gcal_id, _appt_dict["appointment_id"])
+                    app.logger.info("GCal event created: %s for appt %s", gcal_event_id, _appt_dict["appointment_id"])
+                else:
+                    app.logger.warning(
+                        "GCal sync skipped for %s: gcal_id=%r credentials=%s",
+                        username_now, user_gcal_id,
+                        "missing" if not (GOOGLE_SERVICE_ACCOUNT_FILE or GOOGLE_SERVICE_ACCOUNT_JSON) else "ok",
+                    )
             except Exception as e:
-                app.logger.warning("Google Calendar sync failed: %s", e)
+                app.logger.error("Google Calendar sync failed for %s: %s", username_now, e, exc_info=True)
+
+            # 3. Bestätigungs-E-Mail an Makler
+            if agent_email:
+                try:
+                    from src.email_client import send_appointment_confirmation_agent
+                    send_appointment_confirmation_agent(
+                        agent_email=agent_email,
+                        agent_name=agent_name,
+                        client_name=_appt_dict["client_name"],
+                        client_contact=_appt_dict.get("client_contact", ""),
+                        appointment_type=_appt_dict["type"],
+                        date=_appt_dict["date"],
+                        time=_appt_dict["time"],
+                        property_id=_appt_dict.get("property_id", ""),
+                        notes=_appt_dict.get("notes", ""),
+                        appointment_id=_appt_dict["appointment_id"],
+                    )
+                    app.logger.info("Agent confirmation email sent to %s", agent_email)
+                except Exception as e:
+                    app.logger.warning("Agent confirmation email failed: %s", e)
+
+            # 4. Bestätigungs-E-Mail an Kunde (nur wenn client_contact eine E-Mail ist)
+            client_contact = _appt_dict.get("client_contact", "")
+            if "@" in client_contact:
+                try:
+                    from src.email_client import send_appointment_confirmation
+                    dt_iso = f"{_appt_dict['date']}T{_appt_dict['time']}:00"
+                    send_appointment_confirmation(
+                        lead_email=client_contact,
+                        lead_name=_appt_dict["client_name"],
+                        agent_name=agent_name,
+                        property_address=_appt_dict.get("property_id", ""),
+                        datetime_start=dt_iso,
+                        appointment_id=_appt_dict["appointment_id"],
+                    )
+                    app.logger.info("Client confirmation email sent to %s", client_contact)
+                except Exception as e:
+                    app.logger.warning("Client confirmation email failed: %s", e)
 
         import threading
         threading.Thread(target=_post_create, daemon=True).start()
@@ -845,7 +897,7 @@ def calendar_create():
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
-        app.logger.error("Calendar create failed: %s", e)
+        app.logger.error("Calendar create failed: %s", e, exc_info=True)
         return jsonify({"error": "Interner Fehler"}), 500
 
 

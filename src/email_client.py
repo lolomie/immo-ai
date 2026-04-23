@@ -286,6 +286,65 @@ def send_appointment_confirmation(
     _send(lead_email, _build_message(lead_email, subject, body_html, body_text))
 
 
+def send_appointment_confirmation_agent(
+    agent_email: str,
+    agent_name: str,
+    client_name: str,
+    client_contact: str,
+    appointment_type: str,
+    date: str,
+    time: str,
+    property_id: str,
+    notes: str = "",
+    appointment_id: str = "",
+) -> None:
+    """Notify the Makler that a new appointment was created."""
+    import html as _html
+    try:
+        from datetime import datetime
+        dt = datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
+        dt_formatted = dt.strftime("%A, %d. %B %Y um %H:%M Uhr")
+    except ValueError:
+        dt_formatted = f"{date} {time}"
+
+    subject = f"📅 Neuer Termin: {appointment_type} – {client_name}"
+    rows = [
+        ("Typ", appointment_type),
+        ("Datum & Uhrzeit", dt_formatted),
+        ("Kunde", _html.escape(client_name)),
+        ("Kontakt", _html.escape(client_contact) if client_contact else "—"),
+        ("Objekt-ID", _html.escape(property_id) if property_id else "—"),
+    ]
+    if notes:
+        rows.append(("Notizen", _html.escape(notes)))
+    if appointment_id:
+        rows.append(("Termin-ID", _html.escape(appointment_id)))
+
+    table_rows = "".join(
+        f"<tr><td style='padding:8px;background:#f1f5f9;font-weight:600;width:140px;'>{k}</td>"
+        f"<td style='padding:8px;'>{v}</td></tr>"
+        for k, v in rows
+    )
+    body_html = f"""<!DOCTYPE html>
+<html><body style="font-family:sans-serif;color:#1e293b;max-width:600px;margin:auto;padding:24px;">
+  <h2 style="color:#1a3a5c;">Neuer Termin eingetragen</h2>
+  <p>Hallo {_html.escape(agent_name)},</p>
+  <p>ein neuer Termin wurde in Ihrem Kalender angelegt.</p>
+  <table style="border-collapse:collapse;width:100%;margin:16px 0;">
+    {table_rows}
+  </table>
+  <p style="margin-top:24px;font-size:12px;color:#94a3b8;">Immo AI — Automatische Terminverwaltung</p>
+</body></html>"""
+    body_text = (
+        f"Neuer Termin: {appointment_type}\n"
+        f"Datum: {dt_formatted}\n"
+        f"Kunde: {client_name} | Kontakt: {client_contact or '—'}\n"
+        f"Objekt: {property_id or '—'}\n"
+        + (f"Notizen: {notes}\n" if notes else "")
+    )
+    _send(agent_email, _build_message(agent_email, subject, body_html, body_text))
+
+
 def send_appointment_reminder(
     lead_email: str,
     lead_name: str,
