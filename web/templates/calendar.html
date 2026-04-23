@@ -156,6 +156,26 @@
       </form>
     </div>
 
+    <!-- GCal Settings card -->
+    <div class="cal-form-card reveal" style="margin-top:1.25rem;">
+      <div style="display:flex; align-items:center; gap:.5rem; margin-bottom:1rem;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--blue); flex-shrink:0;"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        <h2 style="font-size:.9rem; font-weight:700; color:var(--navy); margin:0; letter-spacing:-.02em;">Google Kalender verbinden</h2>
+      </div>
+      <div class="field" style="margin-bottom:.75rem;">
+        <label for="gcalIdInput" style="font-size:.8rem;">Kalender-ID <span class="opt">(meist deine Google-E-Mail)</span></label>
+        <input type="email" id="gcalIdInput" placeholder="deine@gmail.com" autocomplete="off">
+      </div>
+      <div id="gcalSaveMsg" style="display:none; font-size:.8rem; margin-bottom:.5rem;"></div>
+      <button type="button" class="btn btn-outline btn-sm" id="gcalSaveBtn" style="width:100%; justify-content:center;" onclick="saveGcalId()">
+        Kalender-ID speichern
+      </button>
+      <p style="font-size:.75rem; color:var(--slate); margin-top:.75rem; line-height:1.5;">
+        Teile deinen Kalender mit <strong>pipeline-bot@immo-ai-494020.iam.gserviceaccount.com</strong>
+        (Berechtigung: <em>Ereignisse bearbeiten</em>) damit Termine automatisch eingetragen werden.
+      </p>
+    </div>
+
     <!-- List -->
     <div class="cal-list-panel reveal reveal-d1">
       <h2>Alle Termine</h2>

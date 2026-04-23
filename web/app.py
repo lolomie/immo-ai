@@ -766,6 +766,33 @@ def api_admin_set_phone(username):
         return jsonify({"error": str(e)}), 400
 
 
+@app.route("/api/profile", methods=["GET"])
+@api_login_required
+def api_profile_get():
+    username = _username()
+    return jsonify({
+        "email":            get_user_email(username),
+        "gcal_calendar_id": get_user_gcal_id(username),
+    })
+
+
+@app.route("/api/profile", methods=["PATCH"])
+@api_login_required
+def api_profile_patch():
+    username = _username()
+    if username == "admin":
+        return jsonify({"error": "Admin-Einstellungen über .env setzen"}), 400
+    data = request.get_json() or {}
+    try:
+        if "gcal_calendar_id" in data:
+            set_user_gcal_id(username, data["gcal_calendar_id"].strip())
+        if "email" in data:
+            set_user_email(username, data["email"].strip())
+        return jsonify({"ok": True})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+
 @app.route("/api/usage")
 @api_login_required
 def api_usage():
