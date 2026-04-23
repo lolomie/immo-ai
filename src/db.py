@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 
 # ── Driver selection ──────────────────────────────────────────────────────────
 
-_DATABASE_URL: str = os.environ.get("DATABASE_URL", "")
 _on_vercel = bool(os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"))
 
 _SQLITE_PATH = (
@@ -26,8 +25,32 @@ _SQLITE_PATH = (
 )
 
 
+def _database_url() -> str:
+    """Read DATABASE_URL at call time so load_dotenv() order doesn't matter."""
+    return os.environ.get("DATABASE_URL", "")
+
+
 def _use_postgres() -> bool:
-    return bool(_DATABASE_URL)
+    return bool(_database_url())
+
+
+# ── psycopg2 cursor proxy ─────────────────────────────────────────────────────
+# psycopg2 cursor.execute() returns None; sqlite3 connection.execute() returns
+# a cursor. This proxy normalises both so the helpers below work identically.
+
+class _PgProxy:
+    def __init__(self, cursor):
+        self._c = cursor
+
+    def execute(self, sql, params=()):
+        self._c.execute(sql, params)
+        return self  # mirrors sqlite3: `cur = conn.execute(sql)` then cur.fetchone()
+
+    def fetchone(self):
+        return self._c.fetchone()
+
+    def fetchall(self):
+        return self._c.fetchall()
 
 
 # ── Connection context manager ────────────────────────────────────────────────
@@ -39,14 +62,17 @@ def get_conn():
     if _use_postgres():
         import psycopg2
         import psycopg2.extras
-        conn = psycopg2.connect(_DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
+        conn = psycopg2.connect(_database_url())
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        proxy = _PgProxy(cur)
         try:
-            yield conn
+            yield proxy
             conn.commit()
         except Exception:
             conn.rollback()
             raise
         finally:
+            cur.close()
             conn.close()
     else:
         data_dir = os.path.dirname(_SQLITE_PATH)
@@ -272,7 +298,7 @@ def init_db() -> None:
     """Create all tables if they don't exist. Safe to call on every startup."""
     if _use_postgres():
         import psycopg2
-        conn = psycopg2.connect(_DATABASE_URL)
+        conn = psycopg2.connect(_database_url())
         try:
             cur = conn.cursor()
             for stmt in _POSTGRES_DDL.split(";"):
