@@ -98,7 +98,7 @@ def get_conn():
 
 def _adapt(sql: str) -> str:
     if _use_postgres():
-        return sql.replace("?", "%s")
+        return sql.replace("?", "%s").replace("datetime('now')", "NOW()")
     return sql
 
 
