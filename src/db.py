@@ -9,9 +9,8 @@ All SQL goes through this module. Never import sqlite3 or psycopg2 elsewhere.
 import logging
 import os
 import sqlite3
-import threading
 from contextlib import contextmanager
-from typing import Any, Iterator, List, Optional, Sequence
+from typing import List, Optional, Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +19,10 @@ logger = logging.getLogger(__name__)
 _DATABASE_URL: str = os.environ.get("DATABASE_URL", "")
 _on_vercel = bool(os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"))
 
-# SQLite path: project root /data/immo.db  (or /tmp on Vercel)
 _SQLITE_PATH = (
     "/tmp/immo.db"
     if _on_vercel
-    else os.path.join(os.path.dirname(__file__), "..", "data", "immo.db")
+    else os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "immo.db")
 )
 
 
@@ -32,27 +30,12 @@ def _use_postgres() -> bool:
     return bool(_DATABASE_URL)
 
 
-# ── SQLite thread-local connection pool ───────────────────────────────────────
-
-_local = threading.local()
-
-
-def _sqlite_conn() -> sqlite3.Connection:
-    if not hasattr(_local, "conn") or _local.conn is None:
-        os.makedirs(os.path.dirname(_SQLITE_PATH), exist_ok=True)
-        conn = sqlite3.connect(_SQLITE_PATH, check_same_thread=False)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA foreign_keys=ON")
-        _local.conn = conn
-    return _local.conn
-
-
-# ── Context manager ───────────────────────────────────────────────────────────
+# ── Connection context manager ────────────────────────────────────────────────
+# Each call opens a fresh connection, commits on success, rolls back on error,
+# and always closes — guaranteeing writes reach disk immediately.
 
 @contextmanager
 def get_conn():
-    """Yield a DB connection. Commits on success, rolls back on exception."""
     if _use_postgres():
         import psycopg2
         import psycopg2.extras
@@ -66,24 +49,34 @@ def get_conn():
         finally:
             conn.close()
     else:
-        conn = _sqlite_conn()
+        data_dir = os.path.dirname(_SQLITE_PATH)
+        os.makedirs(data_dir, exist_ok=True)
+        conn = sqlite3.connect(_SQLITE_PATH, timeout=30)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA foreign_keys=ON")
         try:
             yield conn
             conn.commit()
+            # Force WAL checkpoint so data is in the main DB file
+            conn.execute("PRAGMA wal_checkpoint(PASSIVE)")
         except Exception:
             conn.rollback()
             raise
+        finally:
+            conn.close()
 
 
-# ── Placeholder adapter ───────────────────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _ph() -> str:
-    """Return the correct placeholder for the active driver."""
-    return "%s" if _use_postgres() else "?"
+def _adapt(sql: str) -> str:
+    if _use_postgres():
+        return sql.replace("?", "%s")
+    return sql
 
 
 def execute(sql: str, params: Sequence = ()) -> None:
-    """Execute a write query (INSERT / UPDATE / DELETE)."""
     sql = _adapt(sql)
     with get_conn() as conn:
         conn.execute(sql, params)
@@ -94,9 +87,7 @@ def fetchone(sql: str, params: Sequence = ()) -> Optional[dict]:
     with get_conn() as conn:
         cur = conn.execute(sql, params)
         row = cur.fetchone()
-        if row is None:
-            return None
-        return dict(row)
+        return dict(row) if row else None
 
 
 def fetchall(sql: str, params: Sequence = ()) -> List[dict]:
@@ -106,19 +97,12 @@ def fetchall(sql: str, params: Sequence = ()) -> List[dict]:
         return [dict(r) for r in cur.fetchall()]
 
 
-def _adapt(sql: str) -> str:
-    """Convert SQLite-style ? placeholders to %s for PostgreSQL."""
-    if _use_postgres():
-        return sql.replace("?", "%s")
-    return sql
-
-
 # ── Schema ────────────────────────────────────────────────────────────────────
 
 _SQLITE_DDL = """
 CREATE TABLE IF NOT EXISTS users (
     username         TEXT PRIMARY KEY,
-    password_hash    TEXT NOT NULL,
+    password_hash    TEXT NOT NULL DEFAULT '',
     full_name        TEXT DEFAULT '',
     email            TEXT DEFAULT '',
     phone            TEXT DEFAULT '',
@@ -191,18 +175,18 @@ CREATE TABLE IF NOT EXISTS jobs (
     updated_at TEXT DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_calendar_date   ON calendar_events(date);
-CREATE INDEX IF NOT EXISTS idx_signup_email    ON signup_requests(email);
-CREATE INDEX IF NOT EXISTS idx_usage_user      ON usage(username);
-CREATE INDEX IF NOT EXISTS idx_sub_customer    ON subscriptions(stripe_customer_id);
-CREATE INDEX IF NOT EXISTS idx_sub_stripe_sub  ON subscriptions(stripe_subscription_id);
-CREATE INDEX IF NOT EXISTS idx_jobs_status     ON jobs(status);
+CREATE INDEX IF NOT EXISTS idx_calendar_date  ON calendar_events(date);
+CREATE INDEX IF NOT EXISTS idx_signup_email   ON signup_requests(email);
+CREATE INDEX IF NOT EXISTS idx_usage_user     ON usage(username);
+CREATE INDEX IF NOT EXISTS idx_sub_customer   ON subscriptions(stripe_customer_id);
+CREATE INDEX IF NOT EXISTS idx_sub_stripe_sub ON subscriptions(stripe_subscription_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_status    ON jobs(status);
 """
 
 _POSTGRES_DDL = """
 CREATE TABLE IF NOT EXISTS users (
     username         TEXT PRIMARY KEY,
-    password_hash    TEXT NOT NULL,
+    password_hash    TEXT NOT NULL DEFAULT '',
     full_name        TEXT DEFAULT '',
     email            TEXT DEFAULT '',
     phone            TEXT DEFAULT '',
@@ -275,24 +259,23 @@ CREATE TABLE IF NOT EXISTS jobs (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_calendar_date   ON calendar_events(date);
-CREATE INDEX IF NOT EXISTS idx_signup_email    ON signup_requests(email);
-CREATE INDEX IF NOT EXISTS idx_usage_user      ON usage(username);
-CREATE INDEX IF NOT EXISTS idx_sub_customer    ON subscriptions(stripe_customer_id);
-CREATE INDEX IF NOT EXISTS idx_sub_stripe_sub  ON subscriptions(stripe_subscription_id);
-CREATE INDEX IF NOT EXISTS idx_jobs_status     ON jobs(status);
+CREATE INDEX IF NOT EXISTS idx_calendar_date  ON calendar_events(date);
+CREATE INDEX IF NOT EXISTS idx_signup_email   ON signup_requests(email);
+CREATE INDEX IF NOT EXISTS idx_usage_user     ON usage(username);
+CREATE INDEX IF NOT EXISTS idx_sub_customer   ON subscriptions(stripe_customer_id);
+CREATE INDEX IF NOT EXISTS idx_sub_stripe_sub ON subscriptions(stripe_subscription_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_status    ON jobs(status);
 """
 
 
 def init_db() -> None:
-    """Create all tables. Safe to call multiple times (idempotent)."""
-    ddl = _POSTGRES_DDL if _use_postgres() else _SQLITE_DDL
+    """Create all tables if they don't exist. Safe to call on every startup."""
     if _use_postgres():
         import psycopg2
         conn = psycopg2.connect(_DATABASE_URL)
         try:
             cur = conn.cursor()
-            for stmt in ddl.split(";"):
+            for stmt in _POSTGRES_DDL.split(";"):
                 stmt = stmt.strip()
                 if stmt:
                     cur.execute(stmt)
@@ -300,34 +283,39 @@ def init_db() -> None:
         finally:
             conn.close()
     else:
-        os.makedirs(os.path.dirname(_SQLITE_PATH), exist_ok=True)
+        data_dir = os.path.dirname(_SQLITE_PATH)
+        os.makedirs(data_dir, exist_ok=True)
         conn = sqlite3.connect(_SQLITE_PATH)
-        conn.executescript(ddl)
+        conn.executescript(_SQLITE_DDL)
         conn.commit()
         conn.close()
-        # Re-open with WAL mode
-        _sqlite_conn()
-    # Add google_id column to existing DBs (idempotent)
     _run_migrations()
-    logger.info("DB initialised (%s)", "PostgreSQL" if _use_postgres() else f"SQLite @ {_SQLITE_PATH}")
+    logger.info("DB ready (%s @ %s)",
+                "PostgreSQL" if _use_postgres() else "SQLite",
+                "DATABASE_URL" if _use_postgres() else _SQLITE_PATH)
 
 
 def _run_migrations() -> None:
-    """Add new columns/tables to existing databases without dropping data."""
-    migrations = [
+    """Add columns/tables that were missing in older schema versions."""
+    _safe = [
         "ALTER TABLE users ADD COLUMN google_id TEXT DEFAULT ''",
-        # jobs table for existing DBs that pre-date this schema
+        "ALTER TABLE users ADD COLUMN gcal_calendar_id TEXT DEFAULT ''",
+        "ALTER TABLE users ADD COLUMN full_name TEXT DEFAULT ''",
+        "ALTER TABLE users ADD COLUMN company TEXT DEFAULT ''",
+        "ALTER TABLE users ADD COLUMN gdpr_consent INTEGER DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN gdpr_consent_at TEXT",
+        "ALTER TABLE users ADD COLUMN updated_at TEXT DEFAULT (datetime('now'))",
+        # jobs table for DBs that pre-date this column
         """CREATE TABLE IF NOT EXISTS jobs (
             job_id TEXT PRIMARY KEY, timestamp TEXT NOT NULL,
             status TEXT NOT NULL DEFAULT 'pending', created_by TEXT DEFAULT '',
             data TEXT NOT NULL DEFAULT '{}',
             created_at TEXT DEFAULT (datetime('now')),
-            updated_at TEXT DEFAULT (datetime('now'))
-        )""",
+            updated_at TEXT DEFAULT (datetime('now')))""",
         "CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status)",
     ]
-    for sql in migrations:
+    for sql in _safe:
         try:
             execute(sql)
         except Exception:
-            pass  # already exists
+            pass  # column/table already exists — intentionally ignored
