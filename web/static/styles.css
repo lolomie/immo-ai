@@ -465,7 +465,8 @@ section { padding: 6rem 2rem; }
 }
 .problem-highlight strong { color: #fff; font-weight: 600; }
 
-.problem-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; }
+.problem-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+@media (max-width: 840px) { .problem-cards { grid-template-columns: 1fr; } }
 .problem-card {
   background: var(--paper);
   border: 1px solid var(--line-2);
@@ -488,7 +489,8 @@ section { padding: 6rem 2rem; }
 /* ─────────────────────────────────────────
    Steps
    ───────────────────────────────────────── */
-.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 2.5rem; }
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2.5rem; }
+@media (max-width: 840px) { .steps { grid-template-columns: 1fr; gap: 1.75rem; } }
 .step { display: flex; gap: 1.25rem; }
 .step-num {
   flex-shrink: 0;
@@ -505,23 +507,41 @@ section { padding: 6rem 2rem; }
 /* ─────────────────────────────────────────
    Features Grid
    ───────────────────────────────────────── */
-.features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1px; background: var(--line-2); border: 1px solid var(--line-2); border-radius: var(--r-lg); overflow: hidden; }
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--line-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
 .feature-card {
   background: var(--paper);
   padding: 2rem;
+  display: flex;
+  flex-direction: column;
   transition: background var(--transition);
 }
 .feature-card:hover { background: var(--paper-3); }
 .feature-icon {
-  width: 40px; height: 40px;
+  width: 42px; height: 42px;
   background: var(--blue-bg);
   border-radius: var(--r-sm);
   display: flex; align-items: center; justify-content: center;
   font-size: 1.125rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.125rem;
+  flex-shrink: 0;
 }
-.feature-card h3 { font-size: .9375rem; font-weight: 600; color: var(--ink); margin-bottom: .375rem; letter-spacing: -.015em; }
+.feature-card h3 { font-size: .9375rem; font-weight: 600; color: var(--ink); margin-bottom: .4rem; letter-spacing: -.015em; }
 .feature-card p { font-size: .875rem; color: var(--ink-3); line-height: 1.65; }
+
+@media (max-width: 840px) {
+  .features-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 540px) {
+  .features-grid { grid-template-columns: 1fr; }
+}
 
 /* ─────────────────────────────────────────
    Pricing
