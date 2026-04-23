@@ -217,7 +217,7 @@ def gdpr_delete_user(username: str) -> dict:
 
 def list_users() -> list:
     _, fetchall, _ = _db()
-    rows = fetchall("SELECT username, full_name, email, phone, company, plan, created_at FROM users ORDER BY created_at")
+    rows = fetchall("SELECT username, full_name, email, phone, company, plan, gcal_calendar_id, created_at FROM users ORDER BY created_at")
     result = [{"username": ADMIN_USER, "role": "admin",
                "plan": get_user_plan(ADMIN_USER),
                "phone": get_user_phone(ADMIN_USER),

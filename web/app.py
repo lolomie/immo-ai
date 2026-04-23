@@ -93,11 +93,65 @@ def _parse_property(data: dict):
     return PropertyInput(**data)
 
 
-def _save_job(job: JobResult):
-    os.makedirs(LOGS_DIR, exist_ok=True)
-    path = os.path.join(LOGS_DIR, f"{job.job_id}.json")
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(job.model_dump(), f, ensure_ascii=False, indent=2)
+def _save_job(job: JobResult, property_data=None):
+    data = job.model_dump()
+    if property_data is not None:
+        for k, v in property_data.model_dump().items():
+            if k not in data:
+                data[k] = v
+    json_str = json.dumps(data, ensure_ascii=False)
+    try:
+        from src.db import execute as _db_exec
+        _db_exec(
+            "INSERT OR REPLACE INTO jobs (job_id, timestamp, status, created_by, data, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, datetime('now'))",
+            (job.job_id, job.timestamp, job.status, job.created_by or '', json_str),
+        )
+    except Exception as _e:
+        app.logger.warning("DB job save failed: %s", _e)
+    # filesystem backup (local dev + backward compat)
+    try:
+        os.makedirs(LOGS_DIR, exist_ok=True)
+        with open(os.path.join(LOGS_DIR, f"{job.job_id}.json"), "w", encoding="utf-8") as _f:
+            json.dump(data, _f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+def _load_job(job_id: str) -> dict | None:
+    """Load a job from DB (preferred) or filesystem (fallback)."""
+    try:
+        from src.db import fetchone as _db_fetch
+        row = _db_fetch("SELECT data FROM jobs WHERE job_id = ?", (job_id,))
+        if row:
+            return json.loads(row["data"])
+    except Exception:
+        pass
+    path = os.path.join(LOGS_DIR, f"{job_id}.json")
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return None
+
+
+def _update_job_in_db(job_id: str, fields: dict):
+    """Update indexed columns + data blob for a job."""
+    try:
+        from src.db import fetchone as _db_fetch, execute as _db_exec
+        row = _db_fetch("SELECT data FROM jobs WHERE job_id = ?", (job_id,))
+        if not row:
+            return
+        data = json.loads(row["data"])
+        data.update(fields)
+        sets = ", ".join(f"{k}=?" for k in fields if k in ("status", "created_by"))
+        params = [fields[k] for k in fields if k in ("status", "created_by")]
+        params += [json.dumps(data, ensure_ascii=False), job_id]
+        _db_exec(
+            f"UPDATE jobs SET {sets + ', ' if sets else ''}data=?, updated_at=datetime('now') WHERE job_id=?",
+            tuple(params),
+        )
+    except Exception as _e:
+        app.logger.warning("DB job update failed: %s", _e)
 
 
 # ── Error handlers ────────────────────────────────────────────────────────────
@@ -849,7 +903,7 @@ def api_generate():
         hallucination_detected=validation["hallucinated"],
         hallucination_details=validation["details"],
     )
-    _save_job(job)
+    _save_job(job, property_data)
     increment(_username())
     app.logger.info("Job created: %s for %s (plan=%s)", job.job_id, property_data.property_id, _plan())
     return jsonify(job.model_dump())
@@ -900,7 +954,7 @@ def api_generate_stream():
                 hallucination_details=validation["details"],
                 created_by=username,
             )
-            _save_job(job)
+            _save_job(job, property_data)
             increment(username)
             app.logger.info("Stream job: %s for %s (plan=%s)", job_id, property_data.property_id, plan)
 
@@ -940,9 +994,6 @@ def api_generate_stream():
 @api_login_required
 def api_jobs():
     try:
-        if not os.path.isdir(LOGS_DIR):
-            return jsonify({"jobs": [], "total": 0, "page": 1, "limit": 20})
-
         status_filter = request.args.get("status", "pending")
         try:
             page = max(1, int(request.args.get("page", 1)))
@@ -950,21 +1001,32 @@ def api_jobs():
         except (ValueError, TypeError):
             page, limit = 1, 20
 
+        # Primary: read from DB
         jobs = []
-        for fname in os.listdir(LOGS_DIR):
-            if not fname.endswith(".json"):
-                continue
-            try:
-                with open(os.path.join(LOGS_DIR, fname), "r", encoding="utf-8") as f:
-                    job = json.load(f)
-            except Exception:
-                continue
-            if not isinstance(job, dict):
-                continue
-            if status_filter == "all" or job.get("status") == status_filter:
-                jobs.append(job)
+        try:
+            from src.db import fetchall as _db_all
+            if status_filter == "all":
+                rows = _db_all("SELECT data FROM jobs ORDER BY timestamp DESC")
+            else:
+                rows = _db_all("SELECT data FROM jobs WHERE status=? ORDER BY timestamp DESC", (status_filter,))
+            jobs = [json.loads(r["data"]) for r in rows]
+        except Exception as _e:
+            app.logger.warning("DB jobs read failed, falling back to filesystem: %s", _e)
 
-        jobs.sort(key=lambda j: j.get("timestamp", "") or "", reverse=True)
+        # Fallback: filesystem (for jobs created before DB migration)
+        if not jobs and os.path.isdir(LOGS_DIR):
+            for fname in os.listdir(LOGS_DIR):
+                if not fname.endswith(".json"):
+                    continue
+                try:
+                    with open(os.path.join(LOGS_DIR, fname), "r", encoding="utf-8") as f:
+                        job = json.load(f)
+                except Exception:
+                    continue
+                if isinstance(job, dict) and (status_filter == "all" or job.get("status") == status_filter):
+                    jobs.append(job)
+            jobs.sort(key=lambda j: j.get("timestamp", "") or "", reverse=True)
+
         total = len(jobs)
         start = (page - 1) * limit
         return jsonify({"jobs": jobs[start: start + limit], "total": total, "page": page, "limit": limit})
@@ -977,19 +1039,16 @@ def api_jobs():
 @api_login_required
 def api_job_download(job_id):
     """Download a single approved job as .docx."""
-    path = os.path.join(LOGS_DIR, f"{job_id}.json")
-    if not os.path.exists(path):
+    job = _load_job(job_id)
+    if not job:
         return jsonify({"error": "Job nicht gefunden"}), 404
 
     # Return cached DOCX if available
-    docx_path = path.replace(".json", ".docx")
+    docx_path = os.path.join(LOGS_DIR, f"{job_id}.docx")
     if os.path.exists(docx_path):
         with open(docx_path, "rb") as f:
             docx_bytes = f.read()
     else:
-        # Generate on demand
-        with open(path, "r", encoding="utf-8") as f:
-            job = json.load(f)
         try:
             from src.docx_creator import create_expose_docx_bytes
             from src.models import PropertyInput
@@ -1015,6 +1074,7 @@ def api_job_download(job_id):
             app.logger.error("DOCX generation for download failed: %s", e)
             return jsonify({"error": f"DOCX konnte nicht erstellt werden: {e}"}), 500
 
+
     filename = f"Expose_{job_id}.docx"
     return Response(
         docx_bytes,
@@ -1030,30 +1090,35 @@ def api_jobs_export():
     import zipfile
     import io as _io
     try:
-        if not os.path.isdir(LOGS_DIR):
-            return jsonify({"error": "Keine Jobs gefunden"}), 404
-
         status_filter = request.args.get("status", "approved")
-        fmt = request.args.get("format", "zip")  # zip | json (legacy)
+        fmt = request.args.get("format", "zip")
 
         jobs = []
-        for fname in os.listdir(LOGS_DIR):
-            if not fname.endswith(".json"):
-                continue
-            try:
-                with open(os.path.join(LOGS_DIR, fname), "r", encoding="utf-8") as f:
-                    job = json.load(f)
-            except Exception:
-                continue
-            if not isinstance(job, dict):
-                continue
-            if status_filter == "all" or job.get("status") == status_filter:
-                jobs.append(job)
+        try:
+            from src.db import fetchall as _db_all
+            if status_filter == "all":
+                rows = _db_all("SELECT data FROM jobs ORDER BY timestamp DESC")
+            else:
+                rows = _db_all("SELECT data FROM jobs WHERE status=? ORDER BY timestamp DESC", (status_filter,))
+            jobs = [json.loads(r["data"]) for r in rows]
+        except Exception as _e:
+            app.logger.warning("DB export fallback: %s", _e)
+
+        if not jobs and os.path.isdir(LOGS_DIR):
+            for fname in os.listdir(LOGS_DIR):
+                if not fname.endswith(".json"):
+                    continue
+                try:
+                    with open(os.path.join(LOGS_DIR, fname), "r", encoding="utf-8") as f:
+                        job = json.load(f)
+                    if isinstance(job, dict) and (status_filter == "all" or job.get("status") == status_filter):
+                        jobs.append(job)
+                except Exception:
+                    continue
+            jobs.sort(key=lambda j: j.get("timestamp", "") or "", reverse=True)
 
         if not jobs:
             return jsonify({"error": f"Keine Jobs mit Status '{status_filter}' gefunden"}), 404
-
-        jobs.sort(key=lambda j: j.get("timestamp", "") or "", reverse=True)
 
         if fmt == "json":
             return Response(
@@ -1118,15 +1183,19 @@ def api_jobs_export():
 @api_login_required
 def api_patch_job(job_id):
     data = request.get_json()
-    path = os.path.join(LOGS_DIR, f"{job_id}.json")
-    if not os.path.exists(path):
+    job = _load_job(job_id)
+    if not job:
         return jsonify({"error": "Job nicht gefunden"}), 404
-    with open(path, "r", encoding="utf-8") as f:
-        job = json.load(f)
     if "expose_text" in data:
         job["expose_text"] = str(data["expose_text"])
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(job, f, ensure_ascii=False, indent=2)
+    _update_job_in_db(job_id, {"expose_text": job["expose_text"]})
+    try:
+        path = os.path.join(LOGS_DIR, f"{job_id}.json")
+        if os.path.exists(path):
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(job, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
     return jsonify({"ok": True})
 
 
@@ -1139,12 +1208,9 @@ def api_review(job_id):
     reviewer = data.get("reviewer", "").strip() or session.get("username", "Anonym")
     note = data.get("note", "").strip()
 
-    path = os.path.join(LOGS_DIR, f"{job_id}.json")
-    if not os.path.exists(path):
+    job = _load_job(job_id)
+    if not job:
         return jsonify({"error": "Job nicht gefunden"}), 404
-
-    with open(path, "r", encoding="utf-8") as f:
-        job = json.load(f)
 
     if action == "approve":
         job["status"] = "approved"
@@ -1183,10 +1249,13 @@ def api_review(job_id):
                 expose_text=job.get("expose_text", ""),
                 agent_email=agent_email or None,
             )
-            # Cache DOCX in logs dir for later downloads
-            docx_path = path.replace(".json", ".docx")
-            with open(docx_path, "wb") as f:
-                f.write(docx_bytes)
+            # Cache DOCX in logs dir for later downloads (best-effort)
+            try:
+                docx_path = os.path.join(LOGS_DIR, f"{job_id}.docx")
+                with open(docx_path, "wb") as f:
+                    f.write(docx_bytes)
+            except Exception:
+                pass
         except Exception as e:
             app.logger.warning("DOCX generation failed for job %s: %s", job_id, e)
 
@@ -1223,8 +1292,14 @@ def api_review(job_id):
     else:
         return jsonify({"error": "Ungültige Aktion"}), 400
 
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(job, f, ensure_ascii=False, indent=2)
+    _update_job_in_db(job_id, {"status": job["status"]})
+    try:
+        path = os.path.join(LOGS_DIR, f"{job_id}.json")
+        if os.path.exists(path):
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(job, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
 
     app.logger.info("Job %s %sd by %s", job_id, action, reviewer)
 

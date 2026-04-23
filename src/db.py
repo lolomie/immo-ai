@@ -181,11 +181,22 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     updated_at              TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS jobs (
+    job_id     TEXT PRIMARY KEY,
+    timestamp  TEXT NOT NULL,
+    status     TEXT NOT NULL DEFAULT 'pending',
+    created_by TEXT DEFAULT '',
+    data       TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_calendar_date   ON calendar_events(date);
 CREATE INDEX IF NOT EXISTS idx_signup_email    ON signup_requests(email);
 CREATE INDEX IF NOT EXISTS idx_usage_user      ON usage(username);
 CREATE INDEX IF NOT EXISTS idx_sub_customer    ON subscriptions(stripe_customer_id);
 CREATE INDEX IF NOT EXISTS idx_sub_stripe_sub  ON subscriptions(stripe_subscription_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_status     ON jobs(status);
 """
 
 _POSTGRES_DDL = """
@@ -254,11 +265,22 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     updated_at              TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS jobs (
+    job_id     TEXT PRIMARY KEY,
+    timestamp  TEXT NOT NULL,
+    status     TEXT NOT NULL DEFAULT 'pending',
+    created_by TEXT DEFAULT '',
+    data       TEXT NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE INDEX IF NOT EXISTS idx_calendar_date   ON calendar_events(date);
 CREATE INDEX IF NOT EXISTS idx_signup_email    ON signup_requests(email);
 CREATE INDEX IF NOT EXISTS idx_usage_user      ON usage(username);
 CREATE INDEX IF NOT EXISTS idx_sub_customer    ON subscriptions(stripe_customer_id);
 CREATE INDEX IF NOT EXISTS idx_sub_stripe_sub  ON subscriptions(stripe_subscription_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_status     ON jobs(status);
 """
 
 
@@ -291,12 +313,21 @@ def init_db() -> None:
 
 
 def _run_migrations() -> None:
-    """Add new columns to existing databases without dropping data."""
+    """Add new columns/tables to existing databases without dropping data."""
     migrations = [
         "ALTER TABLE users ADD COLUMN google_id TEXT DEFAULT ''",
+        # jobs table for existing DBs that pre-date this schema
+        """CREATE TABLE IF NOT EXISTS jobs (
+            job_id TEXT PRIMARY KEY, timestamp TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending', created_by TEXT DEFAULT '',
+            data TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status)",
     ]
     for sql in migrations:
         try:
             execute(sql)
         except Exception:
-            pass  # Column already exists
+            pass  # already exists

@@ -63,11 +63,17 @@ def create_expose_docx_bytes(
     # ── Details table ─────────────────────────────────────────────────────────
     table = doc.add_table(rows=1, cols=2)
     table.style = "Table Grid"
+    _use_first_row = [True]
 
     def add_row(label: str, value: str) -> None:
-        row = table.add_row().cells
+        if _use_first_row[0]:
+            row = table.rows[0].cells
+            _use_first_row[0] = False
+        else:
+            row = table.add_row().cells
         row[0].text = label
-        row[0].paragraphs[0].runs[0].bold = True
+        if row[0].paragraphs[0].runs:
+            row[0].paragraphs[0].runs[0].bold = True
         row[1].text = value
 
     add_row("Immobilientyp", property_data.property_type)
