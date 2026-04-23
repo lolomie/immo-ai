@@ -3,218 +3,507 @@
 
 {% block content %}
 <style>
-  .gen-wrapper {
-    display: grid;
-    grid-template-columns: 460px 1fr;
-    min-height: calc(100vh - 64px);
-    align-items: start;
-  }
-  .gen-left {
-    border-right: 1px solid var(--border);
-    padding: 2rem 1.875rem 3rem;
-    background: var(--bg-subtle);
-    min-height: calc(100vh - 64px);
-    position: sticky;
-    top: 64px;
-    max-height: calc(100vh - 64px);
-    overflow-y: auto;
-  }
-  .gen-intro { margin-bottom: 1.75rem; }
-  .gen-intro h1 { font-size: 1.25rem; font-weight: 800; color: var(--navy); letter-spacing: -.03em; margin-bottom: .3rem; }
-  .gen-intro p { font-size: .875rem; color: var(--slate); line-height: 1.6; }
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap');
 
-  .draft-bar {
-    display: none;
-    align-items: center;
-    justify-content: space-between;
-    background: #eff6ff;
-    border: 1px solid #bfdbfe;
-    border-radius: var(--radius);
-    padding: .5rem .875rem;
-    font-size: .8125rem;
-    color: #1e40af;
-    margin-bottom: 1.25rem;
-  }
-  .draft-bar.visible { display: flex; }
-  .draft-bar button { background: none; border: none; color: #1e40af; cursor: pointer; font-size: .8125rem; text-decoration: underline; padding: 0; }
+/* ── Token ─────────────────────────────────────────────────────── */
+:root {
+  --cr:        #F5F0E8;   /* cream */
+  --cr-d:      #EDE7D9;   /* cream dark */
+  --an:        #2B2B2B;   /* anthracite */
+  --an-l:      #5A5650;   /* anthracite light */
+  --go:        #B8973A;   /* gold */
+  --go-l:      #D4B05A;   /* gold light */
+  --go-bg:     #FBF6EC;   /* gold tint */
+  --bd:        #E5DFD4;   /* border */
+  --bg:        #FAFAF7;   /* page bg */
+  --serif:     'Playfair Display', Georgia, serif;
+  --sans:      'Inter', -apple-system, sans-serif;
+}
 
-  .section-divider {
-    font-size: .7rem; font-weight: 700; text-transform: uppercase;
-    letter-spacing: .1em; color: var(--slate-light);
-    margin: 1.5rem 0 .875rem;
-    display: flex; align-items: center; gap: .5rem;
-  }
-  .section-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+/* ── Wrapper ───────────────────────────────────────────────────── */
+.gen-wrapper {
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  min-height: calc(100vh - 64px);
+  align-items: start;
+  background: var(--bg);
+}
 
-  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
-  .form-row.single { grid-template-columns: 1fr; }
-  .form-row + .form-row { margin-top: .75rem; }
+/* ══════════════════════════════════════════
+   LEFT — FORM
+══════════════════════════════════════════ */
+.gen-left {
+  border-right: 1px solid var(--bd);
+  padding: 2.5rem 2rem 3rem;
+  background: var(--cr);
+  min-height: calc(100vh - 64px);
+  position: sticky;
+  top: 64px;
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  font-family: var(--sans);
+}
+.gen-left::-webkit-scrollbar { width: 4px; }
+.gen-left::-webkit-scrollbar-track { background: transparent; }
+.gen-left::-webkit-scrollbar-thumb { background: #D4C9B5; border-radius: 2px; }
 
-  .field label { font-size: .8rem; font-weight: 600; color: var(--navy-700); margin-bottom: .3rem; display: block; }
-  .field label .opt { font-weight: 400; color: var(--slate-light); font-size: .75rem; }
-  .field input, .field select, .field textarea {
-    width: 100%; padding: .575rem .8rem;
-    border: 1.5px solid var(--border); border-radius: var(--radius);
-    font-size: .9rem; color: var(--navy-800); background: var(--bg);
-    transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);
-    font-family: inherit;
-  }
-  .field input:hover:not(:focus), .field select:hover:not(:focus), .field textarea:hover:not(:focus) {
-    border-color: #cbd5e1;
-  }
-  .field input:focus, .field select:focus, .field textarea:focus {
-    outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,99,235,.1);
-    background: #fafcff;
-  }
-  .field input.invalid, .field select.invalid { border-color: var(--red) !important; }
-  .field .field-err { font-size: .75rem; color: var(--red); margin-top: .25rem; display: none; }
-  .field.has-error .field-err { display: block; }
-  .field textarea { resize: vertical; min-height: 72px; }
-  .field-hint { font-size: .75rem; color: var(--slate-light); margin-top: .3rem; display: block; }
+.gen-intro { margin-bottom: 1.75rem; }
+.gen-intro h1 {
+  font-family: var(--serif);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--an);
+  letter-spacing: -.02em;
+  line-height: 1.2;
+  margin-bottom: .4rem;
+}
+.gen-intro p { font-size: .875rem; color: var(--an-l); line-height: 1.65; }
 
-  .submit-area { margin-top: 1.75rem; }
-  .submit-row { display: flex; gap: .625rem; align-items: center; }
-  #submitBtn { flex: 1; justify-content: center; padding: .8rem; font-size: .9375rem; border-radius: var(--radius); }
-  .csv-label {
-    display: inline-flex; align-items: center; gap: .4rem;
-    padding: .575rem .875rem; border-radius: var(--radius); font-size: .8125rem; font-weight: 600;
-    cursor: pointer; border: 1.5px solid var(--border); color: var(--navy-700);
-    background: var(--bg); transition: border-color var(--transition), background var(--transition);
-    white-space: nowrap;
-  }
-  .csv-label:hover { border-color: var(--navy-700); background: #f1f5f9; }
-  #csvInput { display: none; }
-  #formError {
-    display: none; margin-top: .875rem; padding: .75rem 1rem;
-    background: var(--red-bg); border: 1px solid var(--red-border);
-    border-radius: var(--radius); font-size: .875rem; color: #991b1b;
-  }
+.usage-row {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+.usage-label {
+  font-size: .65rem; font-weight: 700;
+  color: var(--an-l); text-transform: uppercase; letter-spacing: .1em;
+}
+.usage-track {
+  flex: 1; height: 2px; background: #D4C9B5;
+  border-radius: 99px; min-width: 60px; max-width: 120px; overflow: hidden;
+}
+.usage-fill { height: 100%; border-radius: 99px; background: var(--go); transition: width .4s; }
+.usage-count { font-size: .8rem; color: var(--an-l); font-weight: 500; }
 
-  /* ── Right panel ── */
-  .gen-right { padding: 2rem; position: sticky; top: 64px; max-height: calc(100vh - 64px); overflow-y: auto; }
+.draft-bar {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--go-bg);
+  border: 1px solid #E8D5A0;
+  border-radius: 6px;
+  padding: .5rem .875rem;
+  font-size: .8125rem;
+  color: #7A6020;
+  margin: 1.25rem 0;
+}
+.draft-bar.visible { display: flex; }
+.draft-bar button {
+  background: none; border: none; color: #7A6020; cursor: pointer;
+  font-size: .8125rem; text-decoration: underline; padding: 0;
+}
 
-  .output-empty {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    min-height: 480px; text-align: center; color: var(--slate);
-  }
-  .output-empty-icon {
-    width: 80px; height: 80px;
-    background: var(--bg-subtle);
-    border: 2px dashed var(--border); border-radius: 20px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 2rem; margin-bottom: 1.5rem;
-    transition: border-color var(--transition);
-  }
-  .output-empty h3 { font-size: 1.0625rem; font-weight: 700; color: var(--navy-800); margin-bottom: .5rem; }
-  .output-empty p { font-size: .875rem; max-width: 260px; line-height: 1.65; }
+.section-divider {
+  font-size: .65rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .14em; color: #9E9589;
+  margin: 1.75rem 0 1rem;
+  display: flex; align-items: center; gap: .625rem;
+}
+.section-divider::after { content: ''; flex: 1; height: 1px; background: #D4C9B5; }
 
-  /* Streaming */
-  .output-streaming { display: none; }
-  .output-streaming .stream-header {
-    display: flex; align-items: center; gap: .75rem; margin-bottom: 1.25rem;
-    padding: .75rem 1rem;
-    background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius);
-  }
-  .stream-indicator {
-    width: 8px; height: 8px; background: var(--blue);
-    border-radius: 50%; animation: pulse .8s ease-in-out infinite; flex-shrink: 0;
-  }
-  .stream-label { font-size: .875rem; font-weight: 600; color: var(--blue); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.form-row.single { grid-template-columns: 1fr; }
+.form-row + .form-row { margin-top: .75rem; }
 
-  /* Validating */
-  .output-validating { display: none; }
-  .output-validating .val-header {
-    display: flex; align-items: center; gap: .75rem; margin-bottom: 1.25rem;
-    padding: .75rem 1rem;
-    background: var(--bg-subtle); border: 1px solid var(--border); border-radius: var(--radius);
-  }
-  .val-spinner {
-    width: 16px; height: 16px; border: 2px solid var(--border);
-    border-top-color: var(--blue); border-radius: 50%;
-    animation: spin .7s linear infinite; flex-shrink: 0;
-  }
-  .val-label { font-size: .875rem; font-weight: 600; color: var(--slate); }
+.field label {
+  font-size: .75rem; font-weight: 600;
+  color: var(--an); margin-bottom: .35rem; display: block; letter-spacing: .02em;
+}
+.field label .opt { font-weight: 400; color: #9E9589; font-size: .7rem; }
 
-  /* Result */
-  .output-result { display: none; }
-  .output-result.visible { display: block; animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-  .result-header {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 1rem; flex-wrap: wrap; gap: .75rem;
-    padding-bottom: .875rem; border-bottom: 1px solid var(--border);
-  }
-  .result-header h2 { font-size: 1rem; font-weight: 800; color: var(--navy); letter-spacing: -.02em; }
+.field input, .field select, .field textarea {
+  width: 100%; padding: .6rem .875rem;
+  border: 1px solid #D4C9B5; border-radius: 6px;
+  font-size: .875rem; color: var(--an); background: var(--bg);
+  transition: border-color .15s, box-shadow .15s;
+  font-family: var(--sans);
+}
+.field select {
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239E9589' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right .875rem center;
+  padding-right: 2.5rem;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  outline: none; border-color: var(--go);
+  box-shadow: 0 0 0 3px rgba(184,151,58,.12); background: #fff;
+}
+.field input.invalid, .field select.invalid { border-color: #C0392B !important; }
+.field .field-err { font-size: .7rem; color: #C0392B; margin-top: .25rem; display: none; }
+.field.has-error .field-err { display: block; }
+.field textarea { resize: vertical; min-height: 72px; }
+.field-hint { font-size: .7rem; color: #9E9589; margin-top: .3rem; display: block; line-height: 1.5; }
 
-  .expose-box {
-    background: var(--bg);
-    border: 1.5px solid var(--border); border-radius: var(--radius-lg);
-    padding: 1.5rem 1.75rem; font-size: .9375rem; line-height: 1.8;
-    color: var(--navy-800); white-space: pre-wrap; margin-bottom: 1rem;
-    max-height: 400px; overflow-y: auto; min-height: 80px;
-    font-family: 'Inter', inherit;
-    box-shadow: var(--shadow);
-  }
-  .expose-box[contenteditable="true"] {
-    border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,99,235,.1);
-    background: #fafcff; outline: none;
-  }
-  .expose-box.streaming { max-height: none; min-height: 200px; }
+.submit-area { margin-top: 2rem; }
+.submit-row { display: flex; gap: .625rem; align-items: center; }
+#submitBtn {
+  flex: 1; justify-content: center; padding: .875rem;
+  font-size: .9rem; border-radius: 6px;
+  background: var(--an); color: var(--bg);
+  border: none; font-family: var(--sans); font-weight: 600;
+  cursor: pointer; letter-spacing: .04em;
+  transition: background .15s, transform .1s;
+  display: flex; align-items: center; gap: .5rem;
+}
+#submitBtn:hover:not(:disabled) { background: #1A1A1A; }
+#submitBtn:active:not(:disabled) { transform: translateY(1px); }
+#submitBtn:disabled { opacity: .55; cursor: not-allowed; }
 
-  .ai-disclaimer {
-    display: flex; align-items: flex-start; gap: .6rem;
-    background: var(--amber-bg); border: 1px solid var(--amber-border);
-    border-radius: var(--radius); padding: .75rem 1rem; font-size: .8125rem;
-    color: #92400e; margin-bottom: 1rem; line-height: 1.5;
-  }
-  .result-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1rem; }
-  .job-meta { font-size: .775rem; color: var(--slate-light); padding-top: .75rem; border-top: 1px solid var(--border); }
-  .job-meta code { font-family: ui-monospace, monospace; color: var(--slate); font-size: .8rem; }
+.csv-label {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .6rem .875rem; border-radius: 6px; font-size: .8rem; font-weight: 600;
+  cursor: pointer; border: 1px solid #D4C9B5; color: var(--an-l); background: var(--bg);
+  transition: border-color .15s, background .15s; white-space: nowrap; font-family: var(--sans);
+}
+.csv-label:hover { border-color: var(--an-l); background: var(--cr); }
+#csvInput { display: none; }
 
-  @media (max-width: 920px) {
-    .gen-wrapper { grid-template-columns: 1fr; }
-    .gen-left { border-right: none; border-bottom: 1px solid var(--border); min-height: auto; position: static; max-height: none; }
-    .gen-right { position: static; max-height: none; }
-    .output-empty { min-height: 240px; }
-  }
+#formError {
+  display: none; margin-top: .875rem; padding: .75rem 1rem;
+  background: #FDF2F2; border: 1px solid #FECACA;
+  border-radius: 6px; font-size: .875rem; color: #991b1b;
+}
 
-  @media print {
-    nav, footer, .gen-left, .ai-disclaimer, .result-actions, .job-meta { display: none !important; }
-    .gen-wrapper { display: block; }
-    .gen-right { position: static; max-height: none; padding: 0; }
-    .expose-box { border: none; padding: 0; max-height: none; font-size: 11pt; line-height: 1.85; box-shadow: none; }
-    .result-header { margin-bottom: .5rem; }
-  }
+/* ══════════════════════════════════════════
+   RIGHT — OUTPUT
+══════════════════════════════════════════ */
+.gen-right {
+  padding: 3rem 3.5rem;
+  position: sticky;
+  top: 64px;
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  background: var(--bg);
+  font-family: var(--sans);
+}
+.gen-right::-webkit-scrollbar { width: 4px; }
+.gen-right::-webkit-scrollbar-track { background: transparent; }
+.gen-right::-webkit-scrollbar-thumb { background: #D4C9B5; border-radius: 2px; }
+
+/* ── Empty ── */
+.output-empty {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; min-height: 520px; text-align: center; color: #9E9589;
+}
+.output-empty-icon {
+  width: 72px; height: 72px; background: var(--cr);
+  border: 1px solid var(--bd); border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.625rem; margin-bottom: 1.75rem;
+}
+.output-empty h3 {
+  font-family: var(--serif); font-size: 1.125rem; font-weight: 600;
+  color: var(--an); margin-bottom: .5rem;
+}
+.output-empty p { font-size: .875rem; max-width: 240px; line-height: 1.7; }
+
+/* ── Streaming ── */
+.output-streaming { display: none; }
+.stream-status {
+  display: flex; align-items: center; gap: .75rem;
+  margin-bottom: 1.75rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--bd);
+}
+.stream-dot {
+  width: 6px; height: 6px; background: var(--go);
+  border-radius: 50%; flex-shrink: 0;
+  animation: pulseDot .9s ease-in-out infinite;
+}
+.stream-label {
+  font-size: .7rem; font-weight: 700; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--an-l);
+}
+.stream-preview {
+  font-family: var(--sans); font-size: .9375rem;
+  line-height: 1.85; color: var(--an-l); white-space: pre-wrap;
+}
+
+/* ── Validating ── */
+.output-validating { display: none; }
+.val-status {
+  display: flex; align-items: center; gap: .75rem;
+  margin-bottom: 1.75rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--bd);
+}
+.val-spinner {
+  width: 14px; height: 14px; border: 1.5px solid #D4C9B5;
+  border-top-color: var(--go); border-radius: 50%;
+  animation: spin .7s linear infinite; flex-shrink: 0;
+}
+.val-label {
+  font-size: .7rem; font-weight: 700; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--an-l);
+}
+
+/* ══════════════════════════════════════════
+   RESULT — EXPOSE DOCUMENT
+══════════════════════════════════════════ */
+.output-result { display: none; }
+.output-result.visible {
+  display: block;
+  animation: fadeUp .4s cubic-bezier(.16,1,.3,1);
+}
+
+/* Header */
+.expose-header {
+  margin-bottom: 2.5rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--bd);
+}
+.expose-eyebrow {
+  display: flex; align-items: center; gap: .625rem;
+  margin-bottom: 1rem;
+}
+.expose-eyebrow::before {
+  content: ''; display: block;
+  width: 28px; height: 1px; background: var(--go);
+}
+.expose-eyebrow-text {
+  font-size: .625rem; font-weight: 700; letter-spacing: .2em;
+  text-transform: uppercase; color: var(--go);
+}
+.expose-title {
+  font-family: var(--serif);
+  font-size: 2.25rem; font-weight: 700;
+  color: var(--an); line-height: 1.15;
+  letter-spacing: -.025em; margin-bottom: .5rem;
+}
+.expose-subtitle { font-size: .9375rem; color: #7A7268; font-weight: 400; }
+
+/* Stats bar */
+.expose-stats {
+  display: flex; margin: 2rem 0;
+  border: 1px solid var(--bd); border-radius: 8px;
+  overflow: hidden; background: var(--bg);
+}
+.stat-item {
+  flex: 1; padding: 1.125rem 1rem;
+  text-align: center; border-right: 1px solid var(--bd);
+}
+.stat-item:last-child { border-right: none; }
+.stat-value {
+  font-family: var(--serif); font-size: 1.25rem; font-weight: 600;
+  color: var(--an); display: block; line-height: 1; margin-bottom: .3rem;
+}
+.stat-label {
+  font-size: .6rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .12em; color: #9E9589;
+}
+
+/* Body: text + sidebar */
+.expose-body {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 3rem;
+  align-items: start;
+}
+
+/* Text */
+.expose-text {
+  font-family: var(--sans); font-size: .9375rem;
+  line-height: 1.9; color: var(--an-l);
+  white-space: pre-wrap;
+}
+.expose-text[contenteditable="true"] {
+  outline: none; border: 1px dashed var(--go); border-radius: 6px;
+  padding: 1rem; margin: -1rem; background: rgba(184,151,58,.03);
+}
+
+/* Features section */
+.features-section {
+  margin-top: 2.75rem; padding-top: 2rem; border-top: 1px solid var(--bd);
+}
+.features-heading {
+  font-family: var(--serif); font-size: 1rem; font-weight: 600;
+  color: var(--an); margin-bottom: 1.25rem; letter-spacing: -.01em;
+}
+.features-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: .5rem;
+}
+.feature-item {
+  display: flex; align-items: center; gap: .75rem;
+  padding: .75rem 1rem;
+  background: var(--cr); border: 1px solid var(--bd); border-radius: 6px;
+  font-size: .8125rem; color: var(--an); font-weight: 500;
+  transition: border-color .15s;
+}
+.feature-item:hover { border-color: #C9B898; }
+.feature-icon {
+  width: 28px; height: 28px;
+  background: var(--bg); border: 1px solid var(--bd); border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .8125rem; flex-shrink: 0; line-height: 1;
+}
+
+/* Actions */
+.expose-actions {
+  display: flex; gap: .5rem; flex-wrap: wrap; align-items: center;
+  margin-top: 2.5rem; padding-top: 1.75rem; border-top: 1px solid var(--bd);
+}
+.act-btn {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .55rem 1rem; border-radius: 6px; font-size: .8rem;
+  font-weight: 600; cursor: pointer; transition: all .15s;
+  font-family: var(--sans); border: 1px solid var(--bd);
+  background: var(--bg); color: var(--an); text-decoration: none;
+}
+.act-btn:hover { border-color: var(--an-l); background: var(--cr); }
+.act-btn.primary {
+  background: var(--an); color: var(--bg); border-color: var(--an);
+}
+.act-btn.primary:hover { background: #1A1A1A; border-color: #1A1A1A; }
+
+/* Validation badge */
+.val-badge {
+  display: flex; align-items: center; gap: .6rem;
+  padding: .75rem 1rem; border-radius: 6px;
+  font-size: .8rem; font-weight: 500; margin: 1.5rem 0;
+}
+.val-badge.ok  { background: #F0FDF4; border: 1px solid #BBF7D0; color: #166534; }
+.val-badge.warn { background: #FFFBEB; border: 1px solid #FDE68A; color: #92400E; }
+
+.ai-note {
+  display: flex; align-items: flex-start; gap: .6rem;
+  background: var(--go-bg); border: 1px solid #E8D5A0;
+  border-radius: 6px; padding: .75rem 1rem;
+  font-size: .775rem; color: #7A6020; margin-top: 1.5rem; line-height: 1.6;
+}
+
+.job-meta { font-size: .725rem; color: #9E9589; margin-top: .875rem; }
+.job-meta code { font-family: ui-monospace, monospace; color: var(--an-l); }
+
+/* ── Sidebar ── */
+.expose-sidebar { position: sticky; top: 0; }
+
+.sidebar-card {
+  background: var(--bg); border: 1px solid var(--bd);
+  border-radius: 10px; overflow: hidden;
+}
+
+.sidebar-price-area {
+  background: var(--an); padding: 1.5rem 1.5rem 1.375rem;
+}
+.sidebar-price-label {
+  font-size: .6rem; font-weight: 700; letter-spacing: .2em;
+  text-transform: uppercase; color: var(--go-l); margin-bottom: .5rem;
+}
+.sidebar-price {
+  font-family: var(--serif); font-size: 1.75rem; font-weight: 700;
+  color: #FAFAF7; line-height: 1.1; letter-spacing: -.02em;
+}
+.sidebar-price-sub {
+  font-size: .75rem; color: rgba(255,255,255,.45); margin-top: .375rem;
+}
+
+.sidebar-facts { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--bd); }
+.fact-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: .45rem 0; border-bottom: 1px solid #EDE7D9;
+  font-size: .8125rem;
+}
+.fact-row:last-child { border-bottom: none; }
+.fact-label { color: #9E9589; }
+.fact-val { color: var(--an); font-weight: 600; }
+
+.sidebar-cta { padding: 1.25rem 1.5rem; }
+.cta-review {
+  display: flex; align-items: center; justify-content: center; gap: .5rem;
+  width: 100%; padding: .875rem;
+  background: var(--go); color: #FAFAF7; border: none;
+  border-radius: 6px; font-family: var(--sans); font-size: .8375rem;
+  font-weight: 600; cursor: pointer; letter-spacing: .04em;
+  transition: background .15s; text-decoration: none;
+}
+.cta-review:hover { background: #9E8030; }
+
+.sidebar-sep {
+  display: flex; align-items: center; gap: .5rem;
+  margin: .875rem 0; font-size: .65rem; color: #9E9589; font-weight: 600;
+  letter-spacing: .08em; text-transform: uppercase;
+}
+.sidebar-sep::before, .sidebar-sep::after {
+  content: ''; flex: 1; height: 1px; background: var(--bd);
+}
+
+.sidebar-btns { display: flex; gap: .375rem; }
+.sb-btn {
+  flex: 1; padding: .55rem .25rem; border: 1px solid var(--bd);
+  border-radius: 6px; background: var(--bg); font-size: .72rem;
+  font-weight: 600; color: var(--an-l); cursor: pointer;
+  transition: all .15s; font-family: var(--sans); text-align: center;
+  white-space: nowrap;
+}
+.sb-btn:hover { border-color: var(--an-l); background: var(--cr); color: var(--an); }
+
+/* ── Animations ── */
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: .35; transform: scale(.7); }
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Responsive ── */
+@media (max-width: 1160px) {
+  .expose-body { grid-template-columns: 1fr 230px; gap: 2rem; }
+  .gen-right { padding: 2.5rem 2rem; }
+}
+@media (max-width: 960px) {
+  .gen-wrapper { grid-template-columns: 1fr; }
+  .gen-left { border-right: none; border-bottom: 1px solid var(--bd); min-height: auto; position: static; max-height: none; }
+  .gen-right { position: static; max-height: none; padding: 2rem 1.5rem; }
+  .output-empty { min-height: 240px; }
+  .expose-title { font-size: 1.625rem; }
+  .expose-body { grid-template-columns: 1fr; }
+  .expose-sidebar { position: static; }
+  .sidebar-card { margin-top: 2rem; }
+}
+@media (max-width: 540px) {
+  .expose-stats { flex-wrap: wrap; }
+  .stat-item { flex: 1 1 40%; border-bottom: 1px solid var(--bd); }
+  .features-grid { grid-template-columns: 1fr; }
+}
+
+@media print {
+  nav, footer, .gen-left, .ai-note, .expose-actions, .job-meta, .sidebar-cta { display: none !important; }
+  .gen-wrapper { display: block; }
+  .gen-right { position: static; max-height: none; padding: 0; }
+  .expose-body { grid-template-columns: 1fr 200px; }
+  .expose-title { font-size: 1.75rem; }
+}
 </style>
 
 <div class="gen-wrapper">
 
-  <!-- LEFT — FORM -->
+  <!-- ════ LEFT — FORM ════ -->
   <div class="gen-left">
     <div class="gen-intro">
       <h1>Exposé in unter 60 Sekunden</h1>
       <p>Spare Stunden an Schreibarbeit und reagiere schneller auf Anfragen.</p>
-      <div style="display:flex;align-items:center;gap:.75rem;margin-top:.875rem;flex-wrap:wrap;">
-        <span style="font-size:.75rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:.08em;">
-          {{ plan_info.name }}-Plan
-        </span>
-        <div style="flex:1;height:6px;background:var(--border);border-radius:999px;min-width:80px;max-width:160px;overflow:hidden;">
-          <div style="height:100%;border-radius:999px;background:{% if monthly_used >= monthly_limit %}var(--red){% elif monthly_used >= monthly_limit * 0.8 %}var(--amber){% else %}var(--blue){% endif %};
-               width:{{ [((monthly_used / monthly_limit * 100)|int), 100]|min }}%;transition:width .4s;"></div>
+      <div class="usage-row">
+        <span class="usage-label">{{ plan_info.name }}</span>
+        <div class="usage-track">
+          <div class="usage-fill" style="background:{% if monthly_used >= monthly_limit %}#C0392B{% elif monthly_used >= monthly_limit * 0.8 %}#B8973A{% else %}var(--go){% endif %};width:{{ [((monthly_used / monthly_limit * 100)|int),100]|min }}%;"></div>
         </div>
-        <span style="font-size:.8125rem;color:{% if monthly_used >= monthly_limit %}var(--red){% elif monthly_used >= monthly_limit * 0.8 %}var(--amber){% else %}var(--slate){% endif %};font-weight:600;">
-          {{ monthly_used }} / {{ monthly_limit }}
-        </span>
+        <span class="usage-count">{{ monthly_used }}&thinsp;/&thinsp;{{ monthly_limit }}</span>
       </div>
       {% if limit_reached %}
-      <div class="alert alert-error" style="margin-top:.875rem;font-size:.875rem;">
-        ⚠️ Monatliches Limit erreicht.
-        <a href="/signup?plan={% if user_plan == 'starter' %}pro{% else %}business{% endif %}" style="color:var(--red);font-weight:700;">Jetzt upgraden →</a>
+      <div style="margin-top:.875rem;padding:.75rem 1rem;background:#FDF2F2;border:1px solid #FECACA;border-radius:6px;font-size:.85rem;color:#991b1b;">
+        Monatliches Limit erreicht.
+        <a href="/signup?plan={% if user_plan == 'starter' %}pro{% else %}business{% endif %}" style="color:#991b1b;font-weight:700;">Jetzt upgraden →</a>
       </div>
       {% endif %}
     </div>
 
     <div id="draftBar" class="draft-bar">
-      📝 Entwurf wiederhergestellt
+      Entwurf wiederhergestellt
       <button onclick="clearDraft()">Verwerfen</button>
     </div>
 
@@ -295,7 +584,7 @@
       </div>
 
       {% if can_custom_tone %}
-      <div class="section-divider">Tonalität <span style="color:var(--blue);font-size:.65rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-left:.4rem;">Business</span></div>
+      <div class="section-divider">Tonalität <span style="color:var(--go);font-size:.6rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;margin-left:.4rem;">Business</span></div>
       <div class="form-row single">
         <div class="field">
           <label>Exposé-Stil</label>
@@ -312,11 +601,11 @@
       <div class="section-divider">Tonalität</div>
       <div class="form-row single">
         <div class="field" title="Nur im Business-Plan verfügbar">
-          <label>Exposé-Stil <span style="color:var(--slate-light);font-size:.75rem;">🔒 Business</span></label>
-          <select id="tone" disabled style="opacity:.5;cursor:not-allowed;">
+          <label>Exposé-Stil <span style="color:#9E9589;font-size:.7rem;">🔒 Business</span></label>
+          <select id="tone" disabled style="opacity:.45;cursor:not-allowed;">
             <option>Standard (Upgrade auf Business)</option>
           </select>
-          <span class="field-hint"><a href="/signup?plan=business" style="color:var(--blue);">Business-Plan</a> für anpassbare Tonalität.</span>
+          <span class="field-hint"><a href="/signup?plan=business" style="color:var(--go);">Business-Plan</a> für anpassbare Tonalität.</span>
         </div>
       </div>
       {% endif %}
@@ -339,9 +628,9 @@
 
       <div class="submit-area">
         <div class="submit-row">
-          <button type="submit" class="btn btn-primary" id="submitBtn">✦ Exposé generieren</button>
+          <button type="submit" id="submitBtn">✦ Exposé generieren</button>
           <label class="csv-label" title="CSV importieren">
-            📂 CSV
+            ↑ CSV
             <input type="file" id="csvInput" accept=".csv,text/csv" onchange="importCSV(this)">
           </label>
         </div>
@@ -349,63 +638,134 @@
       </div>
 
     </form>
-  </div>
+  </div><!-- /gen-left -->
 
-  <!-- RIGHT — OUTPUT -->
+
+  <!-- ════ RIGHT — OUTPUT ════ -->
   <div class="gen-right">
 
+    <!-- Empty -->
     <div class="output-empty" id="stateEmpty">
-      <div class="output-empty-icon">📄</div>
+      <div class="output-empty-icon">◼</div>
       <h3>Noch kein Exposé</h3>
-      <p>Fülle das Formular aus und klicke auf „Exposé generieren" — das Ergebnis erscheint hier.</p>
+      <p>Formular ausfüllen und auf „Exposé generieren" klicken — das Ergebnis erscheint hier.</p>
     </div>
 
+    <!-- Streaming -->
     <div class="output-streaming" id="stateStreaming">
-      <div class="stream-header">
-        <div class="stream-indicator"></div>
-        <span class="stream-label">Exposé wird geschrieben…</span>
+      <div class="stream-status">
+        <div class="stream-dot"></div>
+        <span class="stream-label">Exposé wird verfasst</span>
       </div>
-      <div class="expose-box streaming" id="streamText"></div>
+      <div class="stream-preview" id="streamText"></div>
     </div>
 
+    <!-- Validating -->
     <div class="output-validating" id="stateValidating">
-      <div class="val-header">
+      <div class="val-status">
         <div class="val-spinner"></div>
-        <span class="val-label">Wird auf Halluzinationen geprüft…</span>
+        <span class="val-label">Qualitätsprüfung läuft</span>
       </div>
-      <div class="expose-box" id="validatingText"></div>
+      <div class="stream-preview" id="validatingText"></div>
     </div>
 
+    <!-- Result -->
     <div class="output-result" id="stateResult">
-      <div class="result-header">
-        <h2>Generiertes Exposé</h2>
-        <div id="validationBadge"></div>
-      </div>
-      <div id="validationAlert" style="display:none; margin-bottom:1rem;"></div>
 
-      <div class="expose-box" id="exposeText" spellcheck="false"></div>
-
-      <div class="ai-disclaimer">
-        <span style="flex-shrink:0;">⚠️</span>
-        <span>Dieses Exposé wurde KI-gestützt erstellt. Bitte vor Veröffentlichung sorgfältig prüfen.</span>
+      <!-- Property header -->
+      <div class="expose-header">
+        <div class="expose-eyebrow">
+          <span class="expose-eyebrow-text">Exposé — <span id="exposeTagType">Immobilie</span></span>
+        </div>
+        <div class="expose-title" id="exposeTitle">Immobilie</div>
+        <div class="expose-subtitle" id="exposeSubtitle"></div>
       </div>
 
-      <div class="result-actions">
-        <a href="/review" class="btn btn-primary btn-sm">Zur Review →</a>
-        <button class="btn btn-outline btn-sm" id="copyBtn" onclick="copyExpose()">Kopieren</button>
-        <button class="btn btn-outline btn-sm" id="editBtn" onclick="toggleEdit()">Bearbeiten</button>
-        <button class="btn btn-outline btn-sm" onclick="downloadTxt()">↓ .txt</button>
-        <button class="btn btn-outline btn-sm" onclick="window.print()">Drucken</button>
-        <button class="btn btn-outline btn-sm" onclick="resetForm()">↺ Neu</button>
+      <!-- Stats bar -->
+      <div class="expose-stats">
+        <div class="stat-item">
+          <span class="stat-value" id="statSize">—</span>
+          <span class="stat-label">Fläche</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="statRooms">—</span>
+          <span class="stat-label">Zimmer</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="statYear">—</span>
+          <span class="stat-label">Baujahr</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="statEnergy">—</span>
+          <span class="stat-label">Energie</span>
+        </div>
       </div>
 
-      <div class="job-meta">
-        Job <code id="jobId"></code> · Status: ausstehend · Freigabe erforderlich
-      </div>
-    </div>
+      <!-- Validation -->
+      <div id="validationBadge"></div>
+      <div id="validationAlert" style="display:none;margin-bottom:1rem;"></div>
 
-  </div>
-</div>
+      <!-- Body -->
+      <div class="expose-body">
+
+        <!-- Main content -->
+        <div class="expose-content">
+          <div class="expose-text" id="exposeText" spellcheck="false"></div>
+
+          <!-- Features grid -->
+          <div class="features-section" id="featuresSection" style="display:none;">
+            <div class="features-heading">Ausstattungsmerkmale</div>
+            <div class="features-grid" id="featureGrid"></div>
+          </div>
+
+          <!-- Actions -->
+          <div class="expose-actions">
+            <a href="/review" class="act-btn primary">→ Zur Review</a>
+            <button class="act-btn" id="copyBtn" onclick="copyExpose()">Kopieren</button>
+            <button class="act-btn" id="editBtn" onclick="toggleEdit()">Bearbeiten</button>
+            <button class="act-btn" onclick="downloadTxt()">↓ .txt</button>
+            <button class="act-btn" onclick="window.print()">Drucken</button>
+            <button class="act-btn" onclick="resetForm()">↺ Neu</button>
+          </div>
+
+          <div class="ai-note">
+            <span style="flex-shrink:0;opacity:.7;">⚠</span>
+            <span>KI-generiertes Exposé — vor Veröffentlichung sorgfältig prüfen.</span>
+          </div>
+
+          <div class="job-meta">Job-ID: <code id="jobId"></code></div>
+        </div><!-- /expose-content -->
+
+        <!-- Sidebar -->
+        <div class="expose-sidebar">
+          <div class="sidebar-card">
+
+            <div class="sidebar-price-area" id="sidebarPriceArea">
+              <div class="sidebar-price-label" id="sidebarPriceLabel">PREIS</div>
+              <div class="sidebar-price" id="sidebarPrice">—</div>
+              <div class="sidebar-price-sub" id="sidebarPriceSub"></div>
+            </div>
+
+            <div class="sidebar-facts" id="sidebarFacts"></div>
+
+            <div class="sidebar-cta">
+              <a href="/review" class="cta-review">Zur Review →</a>
+              <div class="sidebar-sep">Exportieren</div>
+              <div class="sidebar-btns">
+                <button class="sb-btn" onclick="copyExpose()">Kopieren</button>
+                <button class="sb-btn" onclick="downloadTxt()">↓ .txt</button>
+                <button class="sb-btn" onclick="window.print()">Drucken</button>
+              </div>
+            </div>
+
+          </div>
+        </div><!-- /expose-sidebar -->
+
+      </div><!-- /expose-body -->
+    </div><!-- /stateResult -->
+
+  </div><!-- /gen-right -->
+</div><!-- /gen-wrapper -->
 
 <script>
 const form      = document.getElementById('generateForm');
@@ -421,14 +781,9 @@ function setState(s) {
   document.getElementById('stateEmpty').style.display      = s === 'empty'      ? 'flex'  : 'none';
   document.getElementById('stateStreaming').style.display  = s === 'streaming'  ? 'block' : 'none';
   document.getElementById('stateValidating').style.display = s === 'validating' ? 'block' : 'none';
-  const resultEl = document.getElementById('stateResult');
-  if (s === 'result') {
-    resultEl.style.display = 'block';
-    resultEl.classList.add('visible');
-  } else {
-    resultEl.style.display = 'none';
-    resultEl.classList.remove('visible');
-  }
+  const r = document.getElementById('stateResult');
+  if (s === 'result') { r.style.display = 'block'; r.classList.add('visible'); }
+  else { r.style.display = 'none'; r.classList.remove('visible'); }
 }
 setState('empty');
 
@@ -437,7 +792,7 @@ const FIELDS = ['address','city','zip_code','property_type','year_built','size_s
 
 function saveDraft() {
   const d = {};
-  FIELDS.forEach(id => { d[id] = document.getElementById(id).value; });
+  FIELDS.forEach(id => { const el = document.getElementById(id); if (el) d[id] = el.value; });
   if (Object.values(d).some(v => v)) localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
 }
 
@@ -445,7 +800,7 @@ function loadDraft() {
   try {
     const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
     if (!d) return;
-    FIELDS.forEach(id => { if (d[id]) document.getElementById(id).value = d[id]; });
+    FIELDS.forEach(id => { const el = document.getElementById(id); if (el && d[id]) el.value = d[id]; });
     document.getElementById('draftBar').classList.add('visible');
   } catch(e) {}
 }
@@ -496,13 +851,13 @@ form.addEventListener('submit', async (e) => {
   formError.style.display = 'none';
 
   if (!validateForm()) {
-    formError.textContent = '⚠ Bitte alle Pflichtfelder ausfüllen.';
+    formError.textContent = 'Bitte alle Pflichtfelder ausfüllen.';
     formError.style.display = 'block';
     return;
   }
 
   submitBtn.disabled = true;
-  submitBtn.innerHTML = '<span class="spinner"></span> Wird generiert…';
+  submitBtn.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;"></span> Wird generiert…';
 
   const toneEl = document.getElementById('tone');
   const data = {
@@ -577,27 +932,134 @@ form.addEventListener('submit', async (e) => {
   }
 });
 
+/* ── Feature icon map ── */
+function featureIcon(name) {
+  const f = name.toLowerCase();
+  const map = [
+    [['balkon','terrasse'],            '◼'],
+    [['garten','park'],                '❧'],
+    [['aufzug','fahrstuhl'],           '⬡'],
+    [['tiefgarage','garage','stellplatz','parkplatz'], '⬟'],
+    [['einbauküche','küche','kche'],   '◈'],
+    [['keller','abstellraum'],         '▣'],
+    [['fußbodenheizung','heizung'],    '◉'],
+    [['klimaanlage','klimatisiert'],   '❄'],
+    [['barrierefrei'],                 '⊕'],
+    [['kamin'],                        '✦'],
+    [['pool','schwimmbad'],            '◌'],
+    [['sauna'],                        '◯'],
+    [['parkett','holzboden'],          '▨'],
+    [['solar','photovoltaik'],         '☀'],
+    [['internet','wlan','wifi'],       '⊞'],
+    [['rollläden','rolladen'],         '▤'],
+    [['denkmal','altbau'],             '◭'],
+    [['neubau','erstbezug'],           '◇'],
+  ];
+  for (const [keys, icon] of map) {
+    if (keys.some(k => f.includes(k))) return icon;
+  }
+  return '✦';
+}
+
+/* ── Render result ── */
 function renderResult(job) {
-  const el = document.getElementById('exposeText');
-  el.textContent = job.expose_text;
-  el.contentEditable = 'false';
+  const address      = v('address');
+  const city         = v('city');
+  const zipCode      = v('zip_code');
+  const propertyType = v('property_type');
+  const sizeSqm      = v('size_sqm');
+  const rooms        = v('rooms');
+  const yearBuilt    = v('year_built');
+  const energyClass  = v('energy_class');
+  const purchasePrice = num('purchase_price');
+  const monthlyRent   = num('monthly_rent');
+  const featuresRaw   = v('features');
+
+  /* Header */
+  const roomsLabel = rooms ? rooms.replace('.0','') + '-Zimmer-' : '';
+  document.getElementById('exposeTitle').textContent = roomsLabel + (propertyType || 'Immobilie');
+  document.getElementById('exposeTagType').textContent = (propertyType || 'Immobilie').toUpperCase();
+  const parts = [zipCode, city, yearBuilt ? 'Bj. ' + yearBuilt : ''].filter(Boolean);
+  document.getElementById('exposeSubtitle').textContent = parts.join(' · ');
+
+  /* Stats */
+  document.getElementById('statSize').textContent   = sizeSqm   ? sizeSqm + ' m²'            : '—';
+  document.getElementById('statRooms').textContent  = rooms     ? rooms.replace('.0','')       : '—';
+  document.getElementById('statYear').textContent   = yearBuilt ? yearBuilt                    : '—';
+  document.getElementById('statEnergy').textContent = energyClass || '—';
+
+  /* Sidebar price */
+  const priceArea  = document.getElementById('sidebarPriceArea');
+  const priceLabel = document.getElementById('sidebarPriceLabel');
+  const priceEl    = document.getElementById('sidebarPrice');
+  const priceSub   = document.getElementById('sidebarPriceSub');
+  const fmt = n => new Intl.NumberFormat('de-DE').format(n);
+
+  if (purchasePrice) {
+    priceLabel.textContent = 'KAUFPREIS';
+    priceEl.textContent    = fmt(purchasePrice) + ' €';
+    priceSub.textContent   = sizeSqm ? 'ca. ' + fmt(Math.round(purchasePrice / parseFloat(sizeSqm))) + ' €/m²' : '';
+    priceArea.style.display = 'block';
+  } else if (monthlyRent) {
+    priceLabel.textContent = 'KALTMIETE';
+    priceEl.textContent    = fmt(monthlyRent) + ' €/Mo.';
+    priceSub.textContent   = sizeSqm ? 'ca. ' + fmt(Math.round(monthlyRent / parseFloat(sizeSqm))) + ' €/m²' : '';
+    priceArea.style.display = 'block';
+  } else {
+    priceArea.style.display = 'none';
+  }
+
+  /* Sidebar facts */
+  const facts = [];
+  if (sizeSqm)     facts.push(['Wohnfläche', sizeSqm + ' m²']);
+  if (rooms)       facts.push(['Zimmer', rooms.replace('.0','')]);
+  if (yearBuilt)   facts.push(['Baujahr', yearBuilt]);
+  if (energyClass) facts.push(['Energieklasse', energyClass]);
+  if (propertyType) facts.push(['Objektart', propertyType]);
+  if (city)        facts.push([zipCode ? 'PLZ / Stadt' : 'Stadt', (zipCode ? zipCode + ' ' : '') + city]);
+
+  document.getElementById('sidebarFacts').innerHTML = facts.map(([l,val]) =>
+    `<div class="fact-row"><span class="fact-label">${l}</span><span class="fact-val">${val}</span></div>`
+  ).join('');
+
+  /* Features grid */
+  const features = featuresRaw.split(',').map(f => f.trim()).filter(Boolean);
+  const featSect = document.getElementById('featuresSection');
+  const featGrid = document.getElementById('featureGrid');
+  if (features.length) {
+    featSect.style.display = 'block';
+    featGrid.innerHTML = features.map(f =>
+      `<div class="feature-item">
+        <span class="feature-icon">${featureIcon(f)}</span>
+        <span>${f}</span>
+      </div>`
+    ).join('');
+  } else {
+    featSect.style.display = 'none';
+  }
+
+  /* Expose text */
+  const exposeEl = document.getElementById('exposeText');
+  exposeEl.textContent = job.expose_text;
+  exposeEl.contentEditable = 'false';
   editMode = false;
   document.getElementById('editBtn').textContent = 'Bearbeiten';
   currentJobId = job.job_id;
   document.getElementById('jobId').textContent = job.job_id;
 
+  /* Validation badge */
   const flagged = job.hallucination_detected ?? false;
   const details = job.hallucination_details ?? '';
-  const badge = document.getElementById('validationBadge');
-  const alert = document.getElementById('validationAlert');
+  const badge   = document.getElementById('validationBadge');
+  const alert   = document.getElementById('validationAlert');
 
   if (flagged) {
-    badge.innerHTML = '<span class="badge badge-warning">⚠ Mögliche Ungenauigkeiten</span>';
+    badge.innerHTML = `<div class="val-badge warn">⚠ Mögliche Ungenauigkeiten${details ? ' — ' + details : ''}</div>`;
     alert.style.display = 'block';
-    alert.className = 'alert alert-warning';
+    alert.className = 'val-badge warn';
     alert.textContent = details || 'Prüfung hat Auffälligkeiten erkannt.';
   } else {
-    badge.innerHTML = '<span class="badge badge-success">✓ Geprüft</span>';
+    badge.innerHTML = `<div class="val-badge ok">✓ KI-Prüfung abgeschlossen — keine Auffälligkeiten</div>`;
     alert.style.display = 'none';
   }
 
@@ -607,12 +1069,12 @@ function renderResult(job) {
 
 function showErr(msg) {
   setState('empty');
-  formError.textContent = '⚠ ' + msg;
+  formError.textContent = msg;
   formError.style.display = 'block';
 }
 
 function toggleEdit() {
-  const el = document.getElementById('exposeText');
+  const el  = document.getElementById('exposeText');
   const btn = document.getElementById('editBtn');
   editMode = !editMode;
   el.contentEditable = editMode ? 'true' : 'false';
@@ -632,8 +1094,9 @@ function copyExpose() {
   const text = document.getElementById('exposeText').textContent;
   navigator.clipboard.writeText(text).then(() => {
     const btn = document.getElementById('copyBtn');
-    btn.textContent = '✓ Kopiert!';
-    setTimeout(() => btn.textContent = 'Kopieren', 2200);
+    const orig = btn.textContent;
+    btn.textContent = '✓ Kopiert';
+    setTimeout(() => btn.textContent = orig, 2200);
   });
 }
 
@@ -684,9 +1147,9 @@ function importCSV(input) {
   input.value = '';
 }
 
-const v   = id => document.getElementById(id).value.trim();
+const v   = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
 const num = id => parseFloat(v(id)) || null;
-const int = id => parseInt(v(id)) || null;
+const int = id => parseInt(v(id))   || null;
 </script>
 
 {% endblock %}
