@@ -1007,22 +1007,6 @@ function renderResult(job) {
     `<div class="fact-row"><span class="fact-label">${l}</span><span class="fact-val">${val}</span></div>`
   ).join('');
 
-  /* Features grid */
-  const features = featuresRaw.split(',').map(f => f.trim()).filter(Boolean);
-  const featSect = document.getElementById('featuresSection');
-  const featGrid = document.getElementById('featureGrid');
-  if (features.length) {
-    featSect.style.display = 'block';
-    featGrid.innerHTML = features.map(f =>
-      `<div class="feature-item">
-        <span class="feature-icon">${featureIcon(f)}</span>
-        <span>${f}</span>
-      </div>`
-    ).join('');
-  } else {
-    featSect.style.display = 'none';
-  }
-
   /* Expose text */
   const exposeEl = document.getElementById('exposeText');
   exposeEl.textContent = job.expose_text;
