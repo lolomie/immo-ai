@@ -828,6 +828,7 @@ def calendar_create():
         # GCal sync — synchronous so the result can be shown in the UI
         gcal_synced = False
         gcal_configured = False
+        gcal_error = None
         try:
             from src.gcal_client import create_event as _gcal_create
             from src.config import GOOGLE_SERVICE_ACCOUNT_FILE, GOOGLE_SERVICE_ACCOUNT_JSON
@@ -862,6 +863,7 @@ def calendar_create():
             else:
                 app.logger.info("GCal sync skipped for %s: not configured", username_now)
         except Exception as e:
+            gcal_error = str(e)
             app.logger.error("GCal sync failed for %s: %s", username_now, e, exc_info=True)
 
         def _post_create():
@@ -918,6 +920,7 @@ def calendar_create():
             "appointment": appt.to_dict(),
             "gcal_synced": gcal_synced,
             "gcal_configured": gcal_configured,
+            "gcal_error": gcal_error,
         })
     except ValueError as e:
         return jsonify({"error": str(e)}), 400

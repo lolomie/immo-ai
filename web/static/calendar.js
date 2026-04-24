@@ -139,13 +139,15 @@ function showError(msg) {
   formError.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-function showSuccess(gcalSynced, gcalConfigured) {
+function showSuccess(gcalSynced, gcalConfigured, gcalError) {
   formSuccess.style.display = 'block';
   formError.style.display = 'none';
   if (gcalSynced) {
     gcalSuccess.style.display = 'block';
     gcalWarning.style.display = 'none';
   } else if (gcalConfigured) {
+    const detail = document.getElementById('gcalWarningDetail');
+    if (detail && gcalError) detail.textContent = ' (' + gcalError + ')';
     gcalWarning.style.display = 'block';
     gcalSuccess.style.display = 'none';
   } else {
@@ -156,7 +158,7 @@ function showSuccess(gcalSynced, gcalConfigured) {
     formSuccess.style.display = 'none';
     gcalSuccess.style.display = 'none';
     gcalWarning.style.display = 'none';
-  }, 5000);
+  }, 15000);
 }
 
 // ── Edit mode ──────────────────────────────────────────────────────────────────
@@ -241,7 +243,7 @@ form.addEventListener('submit', async (e) => {
       showError(data.error || 'Fehler beim Speichern.');
     } else {
       cancelEdit();
-      showSuccess(data.gcal_synced || false, data.gcal_configured || false);
+      showSuccess(data.gcal_synced || false, data.gcal_configured || false, data.gcal_error || null);
       loadAppointments();
     }
   } catch {
