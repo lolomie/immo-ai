@@ -833,7 +833,12 @@ def calendar_create():
             from src.gcal_client import create_event as _gcal_create
             from src.config import GOOGLE_SERVICE_ACCOUNT_FILE, GOOGLE_SERVICE_ACCOUNT_JSON
             user_gcal_id = get_user_gcal_id(username_now)
-            gcal_configured = bool(user_gcal_id and (GOOGLE_SERVICE_ACCOUNT_FILE or GOOGLE_SERVICE_ACCOUNT_JSON))
+            gcal_configured = bool(
+                user_gcal_id and (
+                    GOOGLE_SERVICE_ACCOUNT_JSON or
+                    (GOOGLE_SERVICE_ACCOUNT_FILE and os.path.exists(GOOGLE_SERVICE_ACCOUNT_FILE))
+                )
+            )
             if gcal_configured:
                 from datetime import datetime as _dt, timedelta as _td
                 dt_start = f"{_appt_dict['date']}T{_appt_dict['time']}:00"
