@@ -85,43 +85,46 @@ def send_expose_ready(
 
     subject = f"✅ Exposé fertig — {property_address}"
     body_html = f"""<!DOCTYPE html>
-<html><body style="font-family:sans-serif; color:#1e293b; max-width:600px; margin:auto; padding:24px;">
-  <h2 style="color:#1a3a5c;">Exposé erfolgreich generiert</h2>
-  <p>Das KI-Exposé für <strong>{_html.escape(property_address)}</strong> wurde erstellt und validiert.</p>
-  <table style="border-collapse:collapse; width:100%; margin:16px 0;">
+<html><body style="font-family:'Helvetica Neue',Arial,sans-serif; color:#2B2B2B; max-width:600px; margin:auto; padding:32px 24px; background:#FAFAF7;">
+  <div style="border-top:3px solid #B8973A; padding-top:20px; margin-bottom:24px;">
+    <h2 style="color:#2B2B2B; font-size:22px; font-weight:700; margin:0 0 4px;">Exposé erfolgreich generiert</h2>
+    <p style="margin:0; font-size:13px; color:#9E9589; letter-spacing:.05em; text-transform:uppercase;">Immo AI</p>
+  </div>
+  <p style="color:#2B2B2B;">Das KI-Exposé für <strong>{_html.escape(property_address)}</strong> wurde erstellt und validiert.</p>
+  <table style="border-collapse:collapse; width:100%; margin:16px 0; border:1px solid #E5DFD4; border-radius:6px; overflow:hidden;">
     <tr>
-      <td style="padding:8px; background:#f1f5f9; font-weight:600; width:120px;">Objekt-ID</td>
-      <td style="padding:8px;">{_html.escape(property_id)}</td>
+      <td style="padding:10px 12px; background:#F5F0E8; font-weight:600; width:120px; color:#4A4A4A; border-bottom:1px solid #E5DFD4;">Objekt-ID</td>
+      <td style="padding:10px 12px; border-bottom:1px solid #E5DFD4;">{_html.escape(property_id)}</td>
     </tr>
     <tr>
-      <td style="padding:8px; background:#f1f5f9; font-weight:600;">Job-ID</td>
-      <td style="padding:8px;">{_html.escape(job_id)}</td>
+      <td style="padding:10px 12px; background:#F5F0E8; font-weight:600; color:#4A4A4A;">Job-ID</td>
+      <td style="padding:10px 12px;">{_html.escape(job_id)}</td>
     </tr>
   </table>
 
   <!-- Primary CTA button -->
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:20px 0;">
     <tr>
-      <td style="border-radius:6px; background:#1a3a5c;">
+      <td style="border-radius:4px; background:#B8973A;">
         <a href="{safe_url}"
            target="_blank"
-           style="display:inline-block; background:#1a3a5c; color:#ffffff;
-                  font-family:sans-serif; font-size:15px; font-weight:600;
-                  padding:14px 28px; border-radius:6px; text-decoration:none;
-                  mso-padding-alt:0; -webkit-text-size-adjust:none;">
+           style="display:inline-block; background:#B8973A; color:#ffffff;
+                  font-family:'Helvetica Neue',Arial,sans-serif; font-size:15px; font-weight:600;
+                  padding:14px 28px; border-radius:4px; text-decoration:none;
+                  mso-padding-alt:0; -webkit-text-size-adjust:none; letter-spacing:.02em;">
           &#128196;&nbsp; Exposé öffnen (Google Drive)
         </a>
       </td>
     </tr>
   </table>
 
-  <!-- Fallback plain link (shown in clients that strip buttons) -->
-  <p style="margin-top:16px; font-size:13px; color:#64748b;">
+  <!-- Fallback plain link -->
+  <p style="margin-top:12px; font-size:13px; color:#6B6560;">
     Link funktioniert nicht? Direkt öffnen:<br>
-    <a href="{safe_url}" style="color:#2563eb; word-break:break-all;">{safe_url}</a>
+    <a href="{safe_url}" style="color:#B8973A; word-break:break-all;">{safe_url}</a>
   </p>
 
-  <p style="margin-top:24px; font-size:12px; color:#94a3b8;">
+  <p style="margin-top:28px; padding-top:16px; border-top:1px solid #E5DFD4; font-size:12px; color:#9E9589;">
     Dieses Exposé wurde KI-generiert und automatisch auf Halluzinationen geprüft.
     Bitte Inhalt vor Weitergabe an Interessenten prüfen.
   </p>
@@ -159,14 +162,15 @@ def send_expose_approved(
         download_section = f"""
   <p style="margin-top:16px;">
     <a href="{dl_url}"
-       style="display:inline-block;background:#1a3a5c;color:#fff;
-              padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">
+       style="display:inline-block;background:#B8973A;color:#fff;
+              padding:12px 24px;border-radius:4px;text-decoration:none;font-weight:600;
+              font-family:'Helvetica Neue',Arial,sans-serif;letter-spacing:.02em;">
       &#128196;&nbsp; Exposé herunterladen (.docx)
     </a>
   </p>
-  <p style="margin-top:8px;font-size:13px;color:#64748b;">
+  <p style="margin-top:8px;font-size:13px;color:#6B6560;">
     Link funktioniert nicht?
-    <a href="{dl_url}" style="color:#2563eb;word-break:break-all;">{dl_url}</a>
+    <a href="{dl_url}" style="color:#B8973A;word-break:break-all;">{dl_url}</a>
   </p>"""
 
     preview = expose_text[:600].replace("\n", "<br>")
@@ -175,22 +179,25 @@ def send_expose_approved(
 
     subject = f"✅ Exposé freigegeben — {property_id}"
     body_html = f"""<!DOCTYPE html>
-<html><body style="font-family:sans-serif;color:#1e293b;max-width:620px;margin:auto;padding:24px;">
-  <h2 style="color:#1a3a5c;">Exposé freigegeben</h2>
-  <table style="border-collapse:collapse;width:100%;margin:16px 0;">
-    <tr><td style="padding:8px;background:#f1f5f9;font-weight:600;width:110px;">Objekt-ID</td>
-        <td style="padding:8px;">{_html.escape(property_id)}</td></tr>
-    <tr><td style="padding:8px;background:#f1f5f9;font-weight:600;">Job-ID</td>
-        <td style="padding:8px;font-family:monospace;font-size:.875rem;">{_html.escape(job_id)}</td></tr>
+<html><body style="font-family:'Helvetica Neue',Arial,sans-serif;color:#2B2B2B;max-width:620px;margin:auto;padding:32px 24px;background:#FAFAF7;">
+  <div style="border-top:3px solid #B8973A;padding-top:20px;margin-bottom:24px;">
+    <h2 style="color:#2B2B2B;font-size:22px;font-weight:700;margin:0 0 4px;">Exposé freigegeben</h2>
+    <p style="margin:0;font-size:13px;color:#9E9589;letter-spacing:.05em;text-transform:uppercase;">Immo AI</p>
+  </div>
+  <table style="border-collapse:collapse;width:100%;margin:16px 0;border:1px solid #E5DFD4;">
+    <tr><td style="padding:10px 12px;background:#F5F0E8;font-weight:600;width:110px;color:#4A4A4A;border-bottom:1px solid #E5DFD4;">Objekt-ID</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5DFD4;">{_html.escape(property_id)}</td></tr>
+    <tr><td style="padding:10px 12px;background:#F5F0E8;font-weight:600;color:#4A4A4A;">Job-ID</td>
+        <td style="padding:10px 12px;font-family:monospace;font-size:.875rem;">{_html.escape(job_id)}</td></tr>
   </table>
   {download_section}
-  <div style="margin-top:24px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;
-              padding:16px;font-size:.9rem;line-height:1.7;color:#334155;">
+  <div style="margin-top:24px;background:#ffffff;border:1px solid #E5DFD4;border-radius:4px;
+              padding:16px;font-size:.9rem;line-height:1.7;color:#2B2B2B;">
     <strong style="font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;
-                   color:#64748b;display:block;margin-bottom:8px;">Exposé-Vorschau</strong>
+                   color:#6B6560;display:block;margin-bottom:8px;">Exposé-Vorschau</strong>
     {preview}
   </div>
-  <p style="margin-top:24px;font-size:12px;color:#94a3b8;">
+  <p style="margin-top:24px;padding-top:16px;border-top:1px solid #E5DFD4;font-size:12px;color:#9E9589;">
     Das vollständige Exposé ist als .docx-Datei im Anhang beigefügt.<br>
     Bitte Inhalt vor Weitergabe an Interessenten nochmals prüfen.
   </p>
@@ -220,17 +227,21 @@ def send_expose_invalid(
     hallucination_details: str,
 ) -> None:
     subject = f"⚠️ Exposé ungültig — {property_address}"
-    body_html = f"""
-<html><body style="font-family:sans-serif; color:#1e293b; max-width:600px; margin:auto; padding:24px;">
-  <h2 style="color:#b91c1c;">Exposé-Validierung fehlgeschlagen</h2>
+    body_html = f"""<!DOCTYPE html>
+<html><body style="font-family:'Helvetica Neue',Arial,sans-serif;color:#2B2B2B;max-width:600px;margin:auto;padding:32px 24px;background:#FAFAF7;">
+  <div style="border-top:3px solid #cc0000;padding-top:20px;margin-bottom:24px;">
+    <h2 style="color:#cc0000;font-size:22px;font-weight:700;margin:0 0 4px;">Exposé-Validierung fehlgeschlagen</h2>
+    <p style="margin:0;font-size:13px;color:#9E9589;letter-spacing:.05em;text-transform:uppercase;">Immo AI</p>
+  </div>
   <p>Das generierte Exposé für <strong>{property_address}</strong> wurde als ungültig markiert.</p>
-  <div style="background:#fef2f2; border-left:4px solid #b91c1c; padding:12px 16px; margin:16px 0;">
-    <strong>Gefundene Probleme:</strong><br>
+  <div style="background:#fff2f2;border-left:4px solid #cc0000;border:1px solid #f5c6c6;border-left:4px solid #cc0000;padding:12px 16px;margin:16px 0;border-radius:0 4px 4px 0;">
+    <strong style="color:#cc0000;">Gefundene Probleme:</strong><br>
     {hallucination_details}
   </div>
   <p>Bitte überprüfen Sie die Eingabedaten im Google Sheet (Exposé-Inputs, Status: invalid)
      und korrigieren Sie fehlerhafte oder fehlende Felder, dann setzen Sie den Status
      wieder auf <strong>pending</strong> für eine erneute Generierung.</p>
+  <p style="margin-top:28px;padding-top:16px;border-top:1px solid #E5DFD4;font-size:12px;color:#9E9589;">Immo AI — Automatische Exposé-Generierung</p>
 </body></html>
 """
     body_text = (
@@ -259,23 +270,26 @@ def send_appointment_confirmation(
         dt_formatted = datetime_start
 
     subject = f"Terminbestätigung — {property_address}"
-    body_html = f"""
-<html><body style="font-family:sans-serif; color:#1e293b; max-width:600px; margin:auto; padding:24px;">
-  <h2 style="color:#1a3a5c;">Ihr Besichtigungstermin ist bestätigt</h2>
+    body_html = f"""<!DOCTYPE html>
+<html><body style="font-family:'Helvetica Neue',Arial,sans-serif;color:#2B2B2B;max-width:600px;margin:auto;padding:32px 24px;background:#FAFAF7;">
+  <div style="border-top:3px solid #B8973A;padding-top:20px;margin-bottom:24px;">
+    <h2 style="color:#2B2B2B;font-size:22px;font-weight:700;margin:0 0 4px;">Ihr Besichtigungstermin ist bestätigt</h2>
+    <p style="margin:0;font-size:13px;color:#9E9589;letter-spacing:.05em;text-transform:uppercase;">Immo AI</p>
+  </div>
   <p>Guten Tag {lead_name},</p>
   <p>Ihr Besichtigungstermin wurde erfolgreich gebucht.</p>
-  <table style="border-collapse:collapse; width:100%; margin:16px 0;">
-    <tr><td style="padding:8px; background:#f1f5f9; font-weight:600;">Objekt</td>
-        <td style="padding:8px;">{property_address}</td></tr>
-    <tr><td style="padding:8px; background:#f1f5f9; font-weight:600;">Datum & Uhrzeit</td>
-        <td style="padding:8px;">{dt_formatted}</td></tr>
-    <tr><td style="padding:8px; background:#f1f5f9; font-weight:600;">Ihr Makler</td>
-        <td style="padding:8px;">{agent_name}</td></tr>
-    <tr><td style="padding:8px; background:#f1f5f9; font-weight:600;">Termin-ID</td>
-        <td style="padding:8px;">{appointment_id}</td></tr>
+  <table style="border-collapse:collapse;width:100%;margin:16px 0;border:1px solid #E5DFD4;">
+    <tr><td style="padding:10px 12px;background:#F5F0E8;font-weight:600;color:#4A4A4A;border-bottom:1px solid #E5DFD4;">Objekt</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5DFD4;">{property_address}</td></tr>
+    <tr><td style="padding:10px 12px;background:#F5F0E8;font-weight:600;color:#4A4A4A;border-bottom:1px solid #E5DFD4;">Datum & Uhrzeit</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5DFD4;">{dt_formatted}</td></tr>
+    <tr><td style="padding:10px 12px;background:#F5F0E8;font-weight:600;color:#4A4A4A;border-bottom:1px solid #E5DFD4;">Ihr Makler</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5DFD4;">{agent_name}</td></tr>
+    <tr><td style="padding:10px 12px;background:#F5F0E8;font-weight:600;color:#4A4A4A;">Termin-ID</td>
+        <td style="padding:10px 12px;">{appointment_id}</td></tr>
   </table>
   <p>Wir freuen uns auf Ihren Besuch!</p>
-  <p style="margin-top:24px; font-size:12px; color:#94a3b8;">Immo AI — Powered by KI, geprüft durch Menschen.</p>
+  <p style="margin-top:28px;padding-top:16px;border-top:1px solid #E5DFD4;font-size:12px;color:#9E9589;">Immo AI — Powered by KI, geprüft durch Menschen.</p>
 </body></html>
 """
     body_text = (
@@ -321,19 +335,22 @@ def send_appointment_confirmation_agent(
         rows.append(("Termin-ID", _html.escape(appointment_id)))
 
     table_rows = "".join(
-        f"<tr><td style='padding:8px;background:#f1f5f9;font-weight:600;width:140px;'>{k}</td>"
-        f"<td style='padding:8px;'>{v}</td></tr>"
+        f"<tr><td style='padding:10px 12px;background:#F5F0E8;font-weight:600;width:140px;color:#4A4A4A;border-bottom:1px solid #E5DFD4;'>{k}</td>"
+        f"<td style='padding:10px 12px;border-bottom:1px solid #E5DFD4;'>{v}</td></tr>"
         for k, v in rows
     )
     body_html = f"""<!DOCTYPE html>
-<html><body style="font-family:sans-serif;color:#1e293b;max-width:600px;margin:auto;padding:24px;">
-  <h2 style="color:#1a3a5c;">Neuer Termin eingetragen</h2>
+<html><body style="font-family:'Helvetica Neue',Arial,sans-serif;color:#2B2B2B;max-width:600px;margin:auto;padding:32px 24px;background:#FAFAF7;">
+  <div style="border-top:3px solid #B8973A;padding-top:20px;margin-bottom:24px;">
+    <h2 style="color:#2B2B2B;font-size:22px;font-weight:700;margin:0 0 4px;">Neuer Termin eingetragen</h2>
+    <p style="margin:0;font-size:13px;color:#9E9589;letter-spacing:.05em;text-transform:uppercase;">Immo AI</p>
+  </div>
   <p>Hallo {_html.escape(agent_name)},</p>
   <p>ein neuer Termin wurde in Ihrem Kalender angelegt.</p>
-  <table style="border-collapse:collapse;width:100%;margin:16px 0;">
+  <table style="border-collapse:collapse;width:100%;margin:16px 0;border:1px solid #E5DFD4;">
     {table_rows}
   </table>
-  <p style="margin-top:24px;font-size:12px;color:#94a3b8;">Immo AI — Automatische Terminverwaltung</p>
+  <p style="margin-top:28px;padding-top:16px;border-top:1px solid #E5DFD4;font-size:12px;color:#9E9589;">Immo AI — Automatische Terminverwaltung</p>
 </body></html>"""
     body_text = (
         f"Neuer Termin: {appointment_type}\n"
@@ -359,20 +376,24 @@ def send_appointment_reminder(
         dt_formatted = datetime_start
 
     subject = f"⏰ Erinnerung: Besichtigung morgen — {property_address}"
-    body_html = f"""
-<html><body style="font-family:sans-serif; color:#1e293b; max-width:600px; margin:auto; padding:24px;">
-  <h2 style="color:#1a3a5c;">Ihr Termin ist morgen</h2>
+    body_html = f"""<!DOCTYPE html>
+<html><body style="font-family:'Helvetica Neue',Arial,sans-serif;color:#2B2B2B;max-width:600px;margin:auto;padding:32px 24px;background:#FAFAF7;">
+  <div style="border-top:3px solid #B8973A;padding-top:20px;margin-bottom:24px;">
+    <h2 style="color:#2B2B2B;font-size:22px;font-weight:700;margin:0 0 4px;">Ihr Termin ist morgen</h2>
+    <p style="margin:0;font-size:13px;color:#9E9589;letter-spacing:.05em;text-transform:uppercase;">Immo AI</p>
+  </div>
   <p>Guten Tag {lead_name},</p>
   <p>Wir erinnern Sie an Ihren Besichtigungstermin morgen.</p>
-  <table style="border-collapse:collapse; width:100%; margin:16px 0;">
-    <tr><td style="padding:8px; background:#fffbeb; font-weight:600;">Objekt</td>
-        <td style="padding:8px;">{property_address}</td></tr>
-    <tr><td style="padding:8px; background:#fffbeb; font-weight:600;">Datum & Uhrzeit</td>
-        <td style="padding:8px;">{dt_formatted}</td></tr>
-    <tr><td style="padding:8px; background:#fffbeb; font-weight:600;">Ihr Makler</td>
-        <td style="padding:8px;">{agent_name}</td></tr>
+  <table style="border-collapse:collapse;width:100%;margin:16px 0;border:1px solid #E5DFD4;">
+    <tr><td style="padding:10px 12px;background:#F5F0E8;font-weight:600;color:#4A4A4A;border-bottom:1px solid #E5DFD4;">Objekt</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5DFD4;">{property_address}</td></tr>
+    <tr><td style="padding:10px 12px;background:#F5F0E8;font-weight:600;color:#4A4A4A;border-bottom:1px solid #E5DFD4;">Datum & Uhrzeit</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #E5DFD4;">{dt_formatted}</td></tr>
+    <tr><td style="padding:10px 12px;background:#F5F0E8;font-weight:600;color:#4A4A4A;">Ihr Makler</td>
+        <td style="padding:10px 12px;">{agent_name}</td></tr>
   </table>
   <p>Bei Fragen oder falls Sie absagen möchten, antworten Sie bitte auf diese E-Mail.</p>
+  <p style="margin-top:28px;padding-top:16px;border-top:1px solid #E5DFD4;font-size:12px;color:#9E9589;">Immo AI — Powered by KI, geprüft durch Menschen.</p>
 </body></html>
 """
     body_text = (
