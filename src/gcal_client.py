@@ -31,7 +31,15 @@ def _get_calendar_service():
     scopes = ["https://www.googleapis.com/auth/calendar"]
 
     if GOOGLE_SERVICE_ACCOUNT_JSON:
-        info = _json.loads(GOOGLE_SERVICE_ACCOUNT_JSON)
+        raw = GOOGLE_SERVICE_ACCOUNT_JSON.strip()
+        try:
+            info = _json.loads(raw)
+        except _json.JSONDecodeError:
+            # Some platforms (Vercel) convert \n to real newlines inside env vars.
+            # Re-escape them so the JSON becomes valid again.
+            import re as _re
+            fixed = _re.sub(r'(?<!\\)\n', r'\\n', raw)
+            info = _json.loads(fixed)
         creds = Credentials.from_service_account_info(info, scopes=scopes)
     elif GOOGLE_SERVICE_ACCOUNT_FILE and os.path.exists(GOOGLE_SERVICE_ACCOUNT_FILE):
         creds = Credentials.from_service_account_file(GOOGLE_SERVICE_ACCOUNT_FILE, scopes=scopes)
