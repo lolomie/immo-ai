@@ -986,6 +986,50 @@ footer a:hover { color: var(--ink); text-decoration: none; }
   background: var(--green-bg);
 }
 
+/* ── Compare table — Mobile ──────────────────────────────────── */
+@media (max-width: 620px) {
+  .compare-header { display: none; }
+
+  .compare-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: .5rem .625rem;
+    padding: .875rem 1rem;
+    align-items: start;
+  }
+  .compare-row:hover { background: var(--paper); }
+
+  /* Feature label spans both columns */
+  .compare-row span:first-child {
+    grid-column: 1 / -1;
+    padding: 0 0 .5rem;
+    border-bottom: 1px solid var(--line-2);
+    font-size: .875rem; font-weight: 600; color: var(--ink);
+    background: none;
+  }
+
+  /* Both value cells: column layout with mini-label on top */
+  .compare-no,
+  .compare-yes {
+    display: flex; flex-direction: column; align-items: center;
+    gap: .25rem; padding: .5rem .5rem;
+    border-radius: var(--r-sm); text-align: center;
+    font-size: .8125rem !important;
+  }
+  .compare-no::before {
+    content: 'Andere KI';
+    font-size: .625rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .07em; color: var(--ink-4); line-height: 1;
+  }
+  .compare-yes::before {
+    content: 'Immo AI';
+    font-size: .625rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .07em; color: var(--green); line-height: 1;
+  }
+  .compare-no { background: var(--paper-2); color: var(--ink-3); }
+}
+
 /* ─────────────────────────────────────────
    Setup banner + misc
    ───────────────────────────────────────── */
