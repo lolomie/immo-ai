@@ -6,126 +6,179 @@ const formSuccess = document.getElementById('formSuccess');
 const gcalSuccess = document.getElementById('gcalSuccess');
 const gcalWarning = document.getElementById('gcalWarning');
 const submitBtn   = document.getElementById('submitBtn');
+const submitLabel = document.getElementById('submitBtnLabel');
 const formTitle   = document.getElementById('formTitle');
 const editingId   = document.getElementById('editingId');
 const cancelBtn   = document.getElementById('cancelEditBtn');
 
 const TODAY = new Date().toISOString().slice(0, 10);
 
-// Store all loaded appointments by ID so onclick can reference them safely
 const _apptMap = new Map();
+let _allAppointments = [];
+let _currentFilter = 'all';
+let _currentSearch = '';
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function escAttr(str) {
+  return String(str).replace(/['"&<>]/g, c => ({
+    "'": '&#39;', '"': '&quot;', '&': '&amp;', '<': '&lt;', '>': '&gt;'
+  }[c]));
+}
+
+const DE_DAYS   = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+const DE_MONTHS = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+                   'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+
+function formatDateLabel(dateStr) {
+  const d     = new Date(dateStr + 'T00:00:00');
+  const today = new Date(TODAY + 'T00:00:00');
+  const diff  = Math.round((d - today) / 86400000);
+  const num   = d.getDate();
+  const mon   = DE_MONTHS[d.getMonth()];
+  const day   = DE_DAYS[d.getDay()];
+
+  if (diff === 0)  return { label: `Heute · ${num}. ${mon}`,   isToday: true };
+  if (diff === 1)  return { label: `Morgen · ${num}. ${mon}`,  isToday: false };
+  if (diff === -1) return { label: `Gestern · ${num}. ${mon}`, isToday: false };
+  return { label: `${day} · ${num}. ${mon}`, isToday: false };
+}
+
+// ── Filter / Search ────────────────────────────────────────────────────────────
+
+function setFilter(f) {
+  _currentFilter = f;
+  document.querySelectorAll('.filter-tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.filter === f)
+  );
+  renderFiltered();
+}
+
+function onSearch() {
+  _currentSearch = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+  renderFiltered();
+}
+
+function getFiltered() {
+  const weekEnd = new Date(TODAY);
+  weekEnd.setDate(weekEnd.getDate() + 7);
+  const weekEndStr = weekEnd.toISOString().slice(0, 10);
+
+  let items = _allAppointments;
+  switch (_currentFilter) {
+    case 'today':    items = items.filter(a => a.date === TODAY); break;
+    case 'week':     items = items.filter(a => a.date >= TODAY && a.date <= weekEndStr); break;
+    case 'upcoming': items = items.filter(a => a.date >= TODAY); break;
+  }
+  if (_currentSearch) {
+    const q = _currentSearch;
+    items = items.filter(a =>
+      a.client_name.toLowerCase().includes(q) ||
+      (a.client_contact && a.client_contact.toLowerCase().includes(q)) ||
+      (a.property_id    && a.property_id.toLowerCase().includes(q)) ||
+      (a.notes          && a.notes.toLowerCase().includes(q))
+    );
+  }
+  return items;
+}
 
 // ── Load & render ──────────────────────────────────────────────────────────────
 
 async function loadAppointments() {
   try {
-    const res = await fetch('/calendar/all');
+    const res  = await fetch('/calendar/all');
     const data = await res.json();
-    renderList(data.appointments || []);
+    const appts = data.appointments || [];
+    _allAppointments = appts;
+    _apptMap.clear();
+    appts.forEach(a => _apptMap.set(a.appointment_id, a));
+    const count = appts.length;
+    if (count > 0) {
+      countBadge.textContent = count + ' Termin' + (count !== 1 ? 'e' : '');
+      countBadge.style.display = 'inline-flex';
+    } else {
+      countBadge.style.display = 'none';
+    }
+    renderFiltered();
   } catch {
     list.innerHTML = '<div class="alert alert-error">Termine konnten nicht geladen werden.</div>';
   }
 }
 
-function renderList(appointments) {
-  _apptMap.clear();
-  appointments.forEach(a => _apptMap.set(a.appointment_id, a));
+function renderFiltered() {
+  const items = getFiltered();
 
-  const count = appointments.length;
-  if (count > 0) {
-    countBadge.textContent = count + ' Termin' + (count !== 1 ? 'e' : '');
-    countBadge.style.display = 'inline-flex';
-  } else {
-    countBadge.style.display = 'none';
-  }
-
-  if (!count) {
+  if (!items.length) {
+    const isGlobalEmpty = !_allAppointments.length;
     list.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-state-icon">📋</div>
-        <h3>Noch keine Termine</h3>
-        <p style="color:var(--slate); font-size:.875rem; margin-top:.375rem;">
-          Erstelle deinen ersten Termin links.
-        </p>
+      <div class="cal-empty">
+        <div class="cal-empty-icon">${isGlobalEmpty ? '📋' : '🔍'}</div>
+        <h3>${isGlobalEmpty ? 'Noch keine Termine' : 'Keine Treffer'}</h3>
+        <p>${isGlobalEmpty ? 'Erstelle deinen ersten Termin.' : 'Filter oder Suche anpassen.'}</p>
       </div>`;
     return;
   }
 
-  const sorted = [...appointments].sort((a, b) =>
+  const sorted = [...items].sort((a, b) =>
     (a.date + a.time) < (b.date + b.time) ? -1 : 1
   );
 
-  const todayAppts    = sorted.filter(a => a.date === TODAY);
-  const upcomingAppts = sorted.filter(a => a.date !== TODAY);
+  const groups = new Map();
+  sorted.forEach(a => {
+    if (!groups.has(a.date)) groups.set(a.date, []);
+    groups.get(a.date).push(a);
+  });
 
   let html = '';
-
-  if (todayAppts.length) {
-    html += `<div class="today-section">
-      <div class="today-section-label">Heute</div>
-      ${todayAppts.map(renderCard).join('')}
+  for (const [date, appts] of groups) {
+    const { label, isToday } = formatDateLabel(date);
+    html += `<div class="date-group">
+      <div class="date-group-label${isToday ? ' is-today' : ''}">${escHtml(label)}</div>
+      ${appts.map(renderCard).join('')}
     </div>`;
   }
-
-  if (upcomingAppts.length) {
-    const label = todayAppts.length ? 'Weitere Termine' : 'Anstehende Termine';
-    html += `<div>
-      <div class="upcoming-section-label">${label}</div>
-      ${upcomingAppts.map(renderCard).join('')}
-    </div>`;
-  }
-
   list.innerHTML = html;
 }
 
 function renderCard(a) {
   const isToday = a.date === TODAY;
-  const dateStr = a.date.split('-').reverse().join('.');
   const isCall  = a.type === 'Call';
-  const todayTag = isToday ? `<div class="appt-today-tag">● Heute</div>` : '';
-  const id = escAttr(a.appointment_id);
+  const id      = escAttr(a.appointment_id);
+  const [h, m]  = (a.time || '00:00').split(':');
 
-  return `<div class="appt-card${isToday ? ' today' : ''}" id="appt-${id}">
-    <div style="flex:1; min-width:0;">
-      ${todayTag}
-      <div class="appt-title">
-        ${escHtml(a.client_name)}
-        <span class="appt-badge${isCall ? ' call' : ''}">${escHtml(a.type)}</span>
-      </div>
-      <div class="appt-meta">
-        ${dateStr} · ${escHtml(a.time)} Uhr
-        ${a.property_id ? `· <strong>${escHtml(a.property_id)}</strong>` : ''}
-      </div>
-      ${a.client_contact ? `<div class="appt-contact">📞 ${escHtml(a.client_contact)}</div>` : ''}
-      ${a.notes ? `<div class="appt-notes">${escHtml(a.notes)}</div>` : ''}
+  return `<div class="appt-card${isToday ? ' is-today' : ''}" id="appt-${id}">
+    <div class="appt-time-col">
+      <div class="appt-time-hm">${escHtml(h)}:${escHtml(m)}</div>
+      <div class="appt-time-uhr">Uhr</div>
+      <div class="appt-dot${isCall ? ' call' : ''}"></div>
     </div>
-    <div style="display:flex; flex-direction:column; gap:.5rem; flex-shrink:0;">
-      <button class="btn btn-outline btn-sm del-btn"
-        style="color:var(--blue); border-color:var(--blue);"
-        onclick="editAppointment('${id}')">
+    <div class="appt-body">
+      <div class="appt-top">
+        <div class="appt-name" title="${escAttr(a.client_name)}">${escHtml(a.client_name)}</div>
+        <span class="appt-type-badge${isCall ? ' call' : ''}">${escHtml(a.type)}</span>
+      </div>
+      <div class="appt-meta-row">
+        ${a.property_id    ? `<span class="appt-meta-chip"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>${escHtml(a.property_id)}</span>` : ''}
+        ${a.client_contact ? `<span class="appt-meta-chip"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.5 19.79 19.79 0 0 1 1.6 4.9 2 2 0 0 1 3.56 2.69h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 10.91a16 16 0 0 0 6.18 6.18l1.28-.9a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>${escHtml(a.client_contact)}</span>` : ''}
+      </div>
+      ${a.notes ? `<div class="appt-notes-box">${escHtml(a.notes)}</div>` : ''}
+    </div>
+    <div class="appt-actions">
+      <button class="appt-btn edit" onclick="editAppointment('${id}')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         Bearbeiten
       </button>
-      <button class="btn btn-outline btn-sm del-btn"
-        style="color:var(--red); border-color:var(--red-border);"
-        onclick="deleteAppointment('${id}')">
+      <button class="appt-btn del" onclick="deleteAppointment('${id}')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
         Löschen
       </button>
     </div>
   </div>`;
-}
-
-function escHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function escAttr(str) {
-  return String(str).replace(/['"&<>]/g, c => ({
-    "'": '&#39;', '"': '&quot;', '&': '&amp;', '<': '&lt;', '>': '&gt;'
-  }[c]));
 }
 
 // ── Banners ────────────────────────────────────────────────────────────────────
@@ -141,7 +194,7 @@ function showError(msg) {
 
 function showSuccess(gcalSynced, gcalConfigured, gcalError) {
   formSuccess.style.display = 'block';
-  formError.style.display = 'none';
+  formError.style.display   = 'none';
   if (gcalSynced) {
     gcalSuccess.style.display = 'block';
     gcalWarning.style.display = 'none';
@@ -158,10 +211,19 @@ function showSuccess(gcalSynced, gcalConfigured, gcalError) {
     formSuccess.style.display = 'none';
     gcalSuccess.style.display = 'none';
     gcalWarning.style.display = 'none';
-  }, 15000);
+  }, 12000);
 }
 
 // ── Edit mode ──────────────────────────────────────────────────────────────────
+
+function _setFormLabels(editing) {
+  const label = editing ? 'Termin bearbeiten' : 'Neuen Termin erstellen';
+  formTitle.textContent = label;
+  const mTitle = document.getElementById('mobileFormTitle');
+  if (mTitle) mTitle.textContent = label;
+  if (submitLabel) submitLabel.textContent = editing ? 'Änderungen speichern' : 'Termin speichern';
+  cancelBtn.style.display = editing ? 'inline-flex' : 'none';
+}
 
 function editAppointment(id) {
   const a = _apptMap.get(id);
@@ -176,28 +238,28 @@ function editAppointment(id) {
   form.property_id.value    = a.property_id    || '';
   form.notes.value          = a.notes          || '';
 
-  formTitle.textContent     = 'Termin bearbeiten';
-  submitBtn.textContent     = 'Änderungen speichern';
-  cancelBtn.style.display   = 'inline-flex';
+  _setFormLabels(true);
+  ['formSuccess', 'gcalSuccess', 'gcalWarning', 'formError'].forEach(elId => {
+    const el = document.getElementById(elId);
+    if (el) el.style.display = 'none';
+  });
 
-  formSuccess.style.display = 'none';
-  gcalSuccess.style.display = 'none';
-  gcalWarning.style.display = 'none';
-  formError.style.display   = 'none';
-
-  form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (window.innerWidth <= 900) {
+    openMobileForm();
+  } else {
+    document.getElementById('calLeftCol').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    form.client_name.focus();
+  }
 }
 
 function cancelEdit() {
   editingId.value = '';
   form.reset();
-  formTitle.textContent   = 'Neuen Termin erstellen';
-  submitBtn.textContent   = 'Termin speichern';
-  cancelBtn.style.display = 'none';
+  _setFormLabels(false);
   formError.style.display = 'none';
 }
 
-// ── Form submit (create / update) ──────────────────────────────────────────────
+// ── Form submit ────────────────────────────────────────────────────────────────
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -207,33 +269,31 @@ form.addEventListener('submit', async (e) => {
   gcalWarning.style.display = 'none';
 
   const client_name = form.client_name.value.trim();
-  const date = form.date.value;
-  const time = form.time.value;
+  const date        = form.date.value;
+  const time        = form.time.value;
 
   if (!client_name) return showError('Kundenname ist erforderlich.');
   if (!date)        return showError('Datum ist erforderlich.');
   if (!time)        return showError('Uhrzeit ist erforderlich.');
 
   submitBtn.disabled = true;
-  submitBtn.textContent = 'Speichern…';
+  if (submitLabel) submitLabel.textContent = 'Speichern…';
 
   const currentEditId = editingId.value;
-  const isEditing = !!currentEditId;
-  const url = isEditing ? '/calendar/update' : '/calendar/create';
-
+  const isEditing     = !!currentEditId;
+  const url           = isEditing ? '/calendar/update' : '/calendar/create';
   const payload = {
     property_id:    form.property_id.value.trim(),
     client_name,
     client_contact: form.client_contact.value.trim(),
-    date,
-    time,
+    date, time,
     type:  form.type.value,
     notes: form.notes.value.trim(),
   };
   if (isEditing) payload.appointment_id = currentEditId;
 
   try {
-    const res = await fetch(url, {
+    const res  = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -243,6 +303,7 @@ form.addEventListener('submit', async (e) => {
       showError(data.error || 'Fehler beim Speichern.');
     } else {
       cancelEdit();
+      closeMobileForm();
       showSuccess(data.gcal_synced || false, data.gcal_configured || false, data.gcal_error || null);
       loadAppointments();
     }
@@ -250,7 +311,7 @@ form.addEventListener('submit', async (e) => {
     showError('Netzwerkfehler – bitte erneut versuchen.');
   } finally {
     submitBtn.disabled = false;
-    submitBtn.textContent = isEditing ? 'Änderungen speichern' : 'Termin speichern';
+    if (submitLabel) submitLabel.textContent = isEditing ? 'Änderungen speichern' : 'Termin speichern';
   }
 });
 
@@ -258,13 +319,12 @@ form.addEventListener('submit', async (e) => {
 
 async function deleteAppointment(id) {
   if (!confirm('Termin wirklich löschen?')) return;
-
   if (editingId.value === id) cancelEdit();
 
   const card = document.getElementById('appt-' + id);
   if (card) {
     card.classList.add('removing');
-    await new Promise(r => setTimeout(r, 220));
+    await new Promise(r => setTimeout(r, 200));
   }
 
   try {
@@ -280,55 +340,69 @@ async function deleteAppointment(id) {
   }
 }
 
+// ── Mobile drawer ──────────────────────────────────────────────────────────────
+
+function openMobileForm() {
+  document.getElementById('calLeftCol').classList.add('mobile-open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeMobileForm() {
+  document.getElementById('calLeftCol').classList.remove('mobile-open');
+  document.body.style.overflow = '';
+}
+
+document.getElementById('calLeftCol').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeMobileForm();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeMobileForm();
+});
+
 // ── GCal settings ──────────────────────────────────────────────────────────────
 
 async function loadGcalId() {
   try {
-    const res = await fetch('/api/profile');
+    const res  = await fetch('/api/profile');
     if (!res.ok) return;
     const data = await res.json();
-    const input = document.getElementById('gcalIdInput');
-    if (input && data.gcal_calendar_id) input.value = data.gcal_calendar_id;
+    const inp  = document.getElementById('gcalIdInput');
+    if (inp && data.gcal_calendar_id) inp.value = data.gcal_calendar_id;
   } catch {}
 }
 
 async function saveGcalId() {
-  const input = document.getElementById('gcalIdInput');
-  const msg   = document.getElementById('gcalSaveMsg');
-  const btn   = document.getElementById('gcalSaveBtn');
-  const val   = (input.value || '').trim();
+  const inp = document.getElementById('gcalIdInput');
+  const msg = document.getElementById('gcalSaveMsg');
+  const btn = document.getElementById('gcalSaveBtn');
+  const val = (inp.value || '').trim();
 
   if (!val) {
-    msg.textContent = 'Bitte eine Kalender-ID (E-Mail) eingeben.';
-    msg.style.color = 'var(--red)';
+    msg.textContent   = 'Bitte eine Kalender-ID eingeben.';
+    msg.style.color   = 'var(--red)';
     msg.style.display = 'block';
     return;
   }
-
-  btn.disabled = true;
+  btn.disabled    = true;
   btn.textContent = 'Speichern…';
   msg.style.display = 'none';
 
   try {
-    const res = await fetch('/api/profile', {
+    const res  = await fetch('/api/profile', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ gcal_calendar_id: val }),
     });
     const data = await res.json();
-    if (res.ok) {
-      msg.textContent = '✓ Kalender-ID gespeichert.';
-      msg.style.color = 'var(--green)';
-    } else {
-      msg.textContent = data.error || 'Fehler beim Speichern.';
-      msg.style.color = 'var(--red)';
-    }
+    msg.textContent = res.ok ? '✓ Kalender-ID gespeichert.' : (data.error || 'Fehler.');
+    msg.style.color = res.ok ? 'var(--green)' : 'var(--red)';
   } catch {
     msg.textContent = 'Netzwerkfehler.';
     msg.style.color = 'var(--red)';
   } finally {
     msg.style.display = 'block';
-    btn.disabled = false;
+    btn.disabled    = false;
     btn.textContent = 'Kalender-ID speichern';
   }
 }
