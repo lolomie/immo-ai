@@ -27,3 +27,6 @@ python-docx>=1.1.0
 
 # Cal.com / HTTP
 requests>=2.31.0
+
+# WhatsApp push notifications (Pro/Business)
+twilio>=9.0.0
