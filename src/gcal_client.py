@@ -23,6 +23,38 @@ from .config import (
 logger = logging.getLogger(__name__)
 
 
+def _parse_service_account_json(raw: str) -> dict:
+    import json as _json
+    import re as _re
+
+    # Strategy 1: parse as-is
+    try:
+        return _json.loads(raw)
+    except _json.JSONDecodeError:
+        pass
+
+    # Strategy 2: re-escape newlines (Vercel converts \n to real newlines in env vars)
+    fixed = _re.sub(r'(?<!\\)\n', r'\\n', raw)
+    try:
+        return _json.loads(fixed)
+    except _json.JSONDecodeError:
+        pass
+
+    # Strategy 3: extra data after the JSON object — extract only the first object
+    try:
+        obj, _ = _json.JSONDecoder().raw_decode(raw)
+        return obj
+    except _json.JSONDecodeError:
+        pass
+
+    # Strategy 4: combine newline-fix and raw_decode
+    try:
+        obj, _ = _json.JSONDecoder().raw_decode(fixed)
+        return obj
+    except _json.JSONDecodeError as exc:
+        raise ValueError(f"Could not parse GOOGLE_SERVICE_ACCOUNT_JSON: {exc}") from exc
+
+
 def _get_calendar_service():
     import json as _json
     from google.oauth2.service_account import Credentials
@@ -32,14 +64,7 @@ def _get_calendar_service():
 
     if GOOGLE_SERVICE_ACCOUNT_JSON:
         raw = GOOGLE_SERVICE_ACCOUNT_JSON.strip()
-        try:
-            info = _json.loads(raw)
-        except _json.JSONDecodeError:
-            # Some platforms (Vercel) convert \n to real newlines inside env vars.
-            # Re-escape them so the JSON becomes valid again.
-            import re as _re
-            fixed = _re.sub(r'(?<!\\)\n', r'\\n', raw)
-            info = _json.loads(fixed)
+        info = _parse_service_account_json(raw)
         creds = Credentials.from_service_account_info(info, scopes=scopes)
     elif GOOGLE_SERVICE_ACCOUNT_FILE and os.path.exists(GOOGLE_SERVICE_ACCOUNT_FILE):
         creds = Credentials.from_service_account_file(GOOGLE_SERVICE_ACCOUNT_FILE, scopes=scopes)
