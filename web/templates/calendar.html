@@ -42,7 +42,7 @@
 .ff .btn { flex: 1; justify-content: center; }
 
 /* ── GCal ─────────────────────────────────────────────────────── */
-.gcal-note { font-size: .72rem; color: var(--ink-4); margin-top: .75rem; line-height: 1.55; }
+.gcal-note { font-size: .8rem; color: var(--ink-3); margin-top: .75rem; line-height: 1.55; }
 
 /* ── Main panel ───────────────────────────────────────────────── */
 .cal-main { min-width: 0; }
@@ -80,8 +80,8 @@
 /* Date group */
 .dg { margin-bottom: 1.375rem; }
 .dg-lbl {
-  font-size: .675rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em;
-  color: var(--ink-4); display: flex; align-items: center; gap: .75rem; margin-bottom: .75rem;
+  font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--ink-3); display: flex; align-items: center; gap: .75rem; margin-bottom: .75rem;
 }
 .dg-lbl.today { color: var(--blue); }
 .dg-lbl::after { content: ''; flex: 1; height: 1px; background: var(--line-2); }
@@ -104,7 +104,7 @@
 /* Time col */
 .at { flex-shrink: 0; width: 46px; display: flex; flex-direction: column; align-items: center; padding-top: 2px; }
 .at-hm { font-size: .9375rem; font-weight: 800; color: var(--ink); letter-spacing: -.03em; line-height: 1; }
-.at-uhr { font-size: .58rem; font-weight: 700; color: var(--ink-4); text-transform: uppercase; letter-spacing: .05em; }
+.at-uhr { font-size: .6875rem; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
 .at-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--blue); margin-top: 6px; }
 .at-dot.call { background: var(--green); }
 
@@ -122,9 +122,9 @@
 }
 .ab-type.call { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
 .ab-meta { display: flex; flex-wrap: wrap; gap: .2rem .5rem; margin-top: .3rem; }
-.ab-chip { display: inline-flex; align-items: center; gap: .25rem; font-size: .775rem; color: var(--ink-3); }
+.ab-chip { display: inline-flex; align-items: center; gap: .25rem; font-size: .8125rem; color: var(--ink-2); }
 .ab-notes {
-  font-size: .775rem; color: var(--ink-3); line-height: 1.45; margin-top: .5rem;
+  font-size: .8125rem; color: var(--ink-2); line-height: 1.45; margin-top: .5rem;
   padding: .4rem .625rem; background: var(--paper-2);
   border-radius: var(--r-xs); border-left: 2px solid var(--line);
 }
@@ -187,21 +187,35 @@
 .dclose:hover { background: var(--paper-2); }
 
 /* ── Responsive ───────────────────────────────────────────────── */
+
+/* Tablet landscape: etwas engere Sidebar */
+@media (max-width: 1100px) {
+  .cal-grid { grid-template-columns: 300px 1fr; gap: 1.25rem; }
+  .cc { padding: 1.25rem; }
+}
+
+/* Tablet portrait + Mobile: 1 Spalte, Drawer */
 @media (max-width: 900px) {
   .cal-page { padding: 1rem 1rem 5rem; }
-  .cal-grid { grid-template-columns: 1fr; }
+  .cal-grid { grid-template-columns: 1fr; gap: 0; }
   .cal-side { display: none; }
   .fab { display: inline-flex; }
   .aa { flex-direction: row; }
   .ac { padding: .875rem 1rem; gap: .75rem; }
   .ac.today { padding-left: calc(1rem - 2px); }
-  .srch input { width: 100px; }
+  .srch input { width: 90px; }
+  /* Aktionsbuttons auf kleinen Screens: nur Icons */
+  .aa-btn { padding: .45rem .6rem; }
 }
+
+/* Kleine Smartphones */
 @media (max-width: 480px) {
   .ch h1 { font-size: 1.25rem; }
   .srch { display: none; }
-  .at { width: 40px; }
-  .at-hm { font-size: .875rem; }
+  .at { width: 42px; }
+  .at-hm { font-size: .9375rem; }
+  .ab-name { font-size: .875rem; }
+  .aa-btn { font-size: .7rem; gap: .2rem; padding: .4rem .5rem; }
 }
 </style>
 
