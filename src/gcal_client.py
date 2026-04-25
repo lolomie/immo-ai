@@ -161,6 +161,18 @@ def update_event(
     logger.info("GCal event updated: %s", gcal_event_id)
 
 
+def find_event_by_appointment_id(appointment_id: str, calendar_id: Optional[str] = None) -> Optional[str]:
+    """Search GCal for an event tagged with immoai_appointment_id. Returns event ID or None."""
+    service = _get_calendar_service()
+    cal_id = calendar_id or GCAL_CALENDAR_ID
+    result = service.events().list(
+        calendarId=cal_id,
+        privateExtendedProperty=f"immoai_appointment_id={appointment_id}",
+    ).execute()
+    items = result.get("items", [])
+    return items[0]["id"] if items else None
+
+
 def update_event_status(gcal_event_id: str, status: str) -> None:
     """
     Update the status of a calendar event.

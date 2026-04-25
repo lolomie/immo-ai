@@ -1011,6 +1011,10 @@ def calendar_update():
                         calendar_id=user_gcal_id,
                     )
                 else:
+                    from src.gcal_client import find_event_by_appointment_id as _gcal_find, delete_event as _gcal_delete
+                    old_id = _gcal_find(appt_id, calendar_id=user_gcal_id)
+                    if old_id:
+                        _gcal_delete(old_id)
                     _gcal_id = _gcal_create(
                         title=title,
                         start_dt=dt_start,
