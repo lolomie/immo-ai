@@ -863,6 +863,7 @@ def calendar_create():
                     appointment_id=_appt_dict["appointment_id"],
                     calendar_id=user_gcal_id,
                 )
+                update_appointment(_appt_dict["appointment_id"], {"gcal_event_id": _gcal_id})
                 gcal_synced = True
                 app.logger.info("GCal event created: %s for appt %s", _gcal_id, _appt_dict["appointment_id"])
             else:
@@ -967,7 +968,65 @@ def calendar_update():
         appt = update_appointment(appt_id, data)
         if not appt:
             return jsonify({"error": "Termin nicht gefunden"}), 404
-        return jsonify({"ok": True, "appointment": appt.to_dict()})
+
+        # GCal sync
+        gcal_synced = False
+        gcal_error = None
+        try:
+            from src.gcal_client import update_event as _gcal_update, create_event as _gcal_create
+            from src.config import GOOGLE_SERVICE_ACCOUNT_FILE, GOOGLE_SERVICE_ACCOUNT_JSON
+            username_now = _username()
+            user_gcal_id = get_user_gcal_id(username_now)
+            gcal_configured = bool(
+                user_gcal_id and (
+                    GOOGLE_SERVICE_ACCOUNT_JSON or
+                    (GOOGLE_SERVICE_ACCOUNT_FILE and os.path.exists(GOOGLE_SERVICE_ACCOUNT_FILE))
+                )
+            )
+            if gcal_configured:
+                from datetime import datetime as _dt, timedelta as _td
+                _d = appt.to_dict()
+                dt_start = f"{_d['date']}T{_d['time']}:00"
+                dt_end = (_dt.fromisoformat(dt_start) + _td(hours=1)).isoformat()
+                title = f"{_d['type']} – {_d['client_name']}"
+                if _d.get("property_id"):
+                    title += f" ({_d['property_id']})"
+                agent_email = get_user_email(username_now)
+                desc = f"Makler: {username_now}"
+                if agent_email:
+                    desc += f" ({agent_email})"
+                desc += f"\nKunde: {_d['client_name']}"
+                if _d.get("client_contact"):
+                    desc += f"\nKontakt: {_d['client_contact']}"
+                if _d.get("notes"):
+                    desc += f"\nNotizen: {_d['notes']}"
+                if _d.get("gcal_event_id"):
+                    _gcal_update(
+                        gcal_event_id=_d["gcal_event_id"],
+                        title=title,
+                        start_dt=dt_start,
+                        end_dt=dt_end,
+                        description=desc,
+                        location=_d.get("property_id", ""),
+                        calendar_id=user_gcal_id,
+                    )
+                else:
+                    _gcal_id = _gcal_create(
+                        title=title,
+                        start_dt=dt_start,
+                        end_dt=dt_end,
+                        description=desc,
+                        location=_d.get("property_id", ""),
+                        appointment_id=appt_id,
+                        calendar_id=user_gcal_id,
+                    )
+                    update_appointment(appt_id, {"gcal_event_id": _gcal_id})
+                gcal_synced = True
+        except Exception as e:
+            gcal_error = str(e)
+            app.logger.error("GCal update sync failed: %s", e, exc_info=True)
+
+        return jsonify({"ok": True, "appointment": appt.to_dict(), "gcal_synced": gcal_synced, "gcal_error": gcal_error})
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:

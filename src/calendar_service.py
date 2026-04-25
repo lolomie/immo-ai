@@ -20,6 +20,7 @@ class Appointment:
     type: str        # "Besichtigung" | "Call"
     notes: str = ""
     username: str = ""
+    gcal_event_id: str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -36,6 +37,7 @@ class Appointment:
             type=d["type"],
             notes=d.get("notes", ""),
             username=d.get("username", ""),
+            gcal_event_id=d.get("gcal_event_id", ""),
         )
 
 
@@ -83,11 +85,11 @@ def create_appointment(data: dict, username: str = "") -> Appointment:
     execute(
         """INSERT INTO calendar_events
                (appointment_id, property_id, client_name, client_contact,
-                date, time, type, notes, username)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                date, time, type, notes, username, gcal_event_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (appt.appointment_id, appt.property_id, appt.client_name,
          appt.client_contact, appt.date, appt.time, appt.type,
-         appt.notes, appt.username),
+         appt.notes, appt.username, appt.gcal_event_id),
     )
     return appt
 
@@ -161,17 +163,17 @@ def update_appointment(appointment_id: str, data: dict) -> Optional[Appointment]
     if not existing:
         return None
     merged = dict(existing)
-    for k in ("property_id", "client_name", "client_contact", "date", "time", "type", "notes"):
+    for k in ("property_id", "client_name", "client_contact", "date", "time", "type", "notes", "gcal_event_id"):
         if k in data:
             merged[k] = data[k]
     _validate(merged)
     execute(
         """UPDATE calendar_events
-           SET property_id=?, client_name=?, client_contact=?, date=?, time=?, type=?, notes=?
+           SET property_id=?, client_name=?, client_contact=?, date=?, time=?, type=?, notes=?, gcal_event_id=?
            WHERE appointment_id=?""",
         (merged["property_id"], merged["client_name"], merged["client_contact"],
          merged["date"], merged["time"], merged["type"], merged["notes"],
-         appointment_id),
+         merged.get("gcal_event_id", ""), appointment_id),
     )
     return Appointment.from_dict(merged)
 

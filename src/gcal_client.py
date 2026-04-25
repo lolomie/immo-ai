@@ -134,6 +134,33 @@ def create_event(
     return event_id
 
 
+def update_event(
+    gcal_event_id: str,
+    title: str,
+    start_dt: str,
+    end_dt: str,
+    description: str = "",
+    location: str = "",
+    calendar_id: Optional[str] = None,
+) -> None:
+    """Update title, time, description and location of an existing GCal event."""
+    service = _get_calendar_service()
+    cal_id = calendar_id or GCAL_CALENDAR_ID
+    event = service.events().get(calendarId=cal_id, eventId=gcal_event_id).execute()
+    event["summary"] = title
+    event["description"] = description
+    event["location"] = location
+    event["start"] = {"dateTime": start_dt, "timeZone": "Europe/Berlin"}
+    event["end"] = {"dateTime": end_dt, "timeZone": "Europe/Berlin"}
+    service.events().update(
+        calendarId=cal_id,
+        eventId=gcal_event_id,
+        body=event,
+        sendUpdates="none",
+    ).execute()
+    logger.info("GCal event updated: %s", gcal_event_id)
+
+
 def update_event_status(gcal_event_id: str, status: str) -> None:
     """
     Update the status of a calendar event.

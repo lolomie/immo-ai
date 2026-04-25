@@ -173,6 +173,7 @@ CREATE TABLE IF NOT EXISTS calendar_events (
     type           TEXT NOT NULL,
     notes          TEXT DEFAULT '',
     username       TEXT DEFAULT '',
+    gcal_event_id  TEXT DEFAULT '',
     created_at     TEXT DEFAULT (datetime('now'))
 );
 
@@ -257,6 +258,7 @@ CREATE TABLE IF NOT EXISTS calendar_events (
     type           TEXT NOT NULL,
     notes          TEXT DEFAULT '',
     username       TEXT DEFAULT '',
+    gcal_event_id  TEXT DEFAULT '',
     created_at     TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -331,6 +333,7 @@ def _run_migrations() -> None:
         "ALTER TABLE users ADD COLUMN gdpr_consent INTEGER DEFAULT 0",
         "ALTER TABLE users ADD COLUMN gdpr_consent_at TEXT",
         "ALTER TABLE users ADD COLUMN updated_at TEXT DEFAULT (datetime('now'))",
+        "ALTER TABLE calendar_events ADD COLUMN gcal_event_id TEXT DEFAULT ''",
         # jobs table for DBs that pre-date this column
         """CREATE TABLE IF NOT EXISTS jobs (
             job_id TEXT PRIMARY KEY, timestamp TEXT NOT NULL,
