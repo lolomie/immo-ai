@@ -118,6 +118,24 @@ except Exception as _m_err:
     app.logger.warning("Log job migration failed: %s", _m_err)
 
 
+def _check_db_health() -> None:
+    """Verify the DB is readable and writable at startup."""
+    from src.db import execute as _e, fetchone as _f
+    _e("INSERT OR REPLACE INTO jobs (job_id, timestamp, status, created_by, data) VALUES (?, ?, ?, ?, ?)",
+       ("_healthcheck_", "2000-01-01T00:00:00Z", "healthcheck", "", "{}"))
+    row = _f("SELECT job_id FROM jobs WHERE job_id=?", ("_healthcheck_",))
+    _e("DELETE FROM jobs WHERE job_id=?", ("_healthcheck_",))
+    if not row:
+        raise RuntimeError("DB health check: Schreib-/Lese-Test fehlgeschlagen")
+    app.logger.info("DB health check OK")
+
+
+try:
+    _check_db_health()
+except Exception as _hc_err:
+    app.logger.error("DB HEALTH CHECK FEHLGESCHLAGEN: %s — Jobs können nicht gespeichert werden!", _hc_err)
+
+
 def _parse_property(data: dict):
     if not data.get("property_id"):
         data["property_id"] = "WEB-" + str(uuid.uuid4())[:6].upper()
@@ -136,15 +154,12 @@ def _save_job(job: JobResult, property_data=None):
             if k not in data:
                 data[k] = v
     json_str = json.dumps(data, ensure_ascii=False)
-    try:
-        from src.db import execute as _db_exec
-        _db_exec(
-            "INSERT OR REPLACE INTO jobs (job_id, timestamp, status, created_by, data, updated_at)"
-            " VALUES (?, ?, ?, ?, ?, datetime('now'))",
-            (job.job_id, job.timestamp, job.status, job.created_by or '', json_str),
-        )
-    except Exception as _e:
-        app.logger.warning("DB job save failed: %s", _e)
+    from src.db import execute as _db_exec
+    _db_exec(
+        "INSERT OR REPLACE INTO jobs (job_id, timestamp, status, created_by, data, updated_at)"
+        " VALUES (?, ?, ?, ?, ?, datetime('now'))",
+        (job.job_id, job.timestamp, job.status, job.created_by or '', json_str),
+    )
 
 
 def _load_job(job_id: str) -> dict | None:
@@ -1148,7 +1163,12 @@ def api_generate_stream():
                 hallucination_details=validation["details"],
                 created_by=username,
             )
-            _save_job(job, property_data)
+            try:
+                _save_job(job, property_data)
+            except Exception as _save_err:
+                app.logger.error("CRITICAL: Job %s konnte nicht gespeichert werden: %s", job_id, _save_err)
+                yield f"data: {json.dumps({'type': 'error', 'message': f'Exposé generiert, aber Speicherung fehlgeschlagen: {_save_err}. Bitte DB-Verbindung prüfen.'})}\n\n"
+                return
             increment(username)
             app.logger.info("Stream job: %s for %s (plan=%s)", job_id, property_data.property_id, plan)
 
