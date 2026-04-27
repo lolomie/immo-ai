@@ -104,21 +104,23 @@ html.cr *, html.cr *::before, html.cr *::after { cursor: none !important; }
   border-radius: 50%; pointer-events: none; z-index: 99999;
 }
 #c-dot {
-  width: 7px; height: 7px;
+  width: 12px; height: 12px;
   background: var(--blue);
+  box-shadow: 0 0 8px rgba(184,151,58,.7);
   transition: width .22s var(--ease), height .22s var(--ease), opacity .2s var(--ease);
 }
 #c-ring {
-  width: 32px; height: 32px;
-  border: 1.5px solid var(--blue);
-  opacity: .5;
+  width: 44px; height: 44px;
+  border: 2.5px solid var(--blue);
+  opacity: .75;
+  box-shadow: 0 0 10px rgba(184,151,58,.25);
   transition: width .45s var(--ease), height .45s var(--ease),
               background .45s var(--ease), opacity .35s var(--ease);
 }
-html.cr.c-hover #c-ring { width: 52px; height: 52px; background: rgba(184,151,58,.08); opacity: .8; }
-html.cr.c-hover #c-dot  { width: 4px; height: 4px; opacity: .65; }
-html.cr.c-click #c-dot  { width: 5px; height: 5px; }
-html.cr.c-click #c-ring { width: 22px; height: 22px; opacity: .95; }
+html.cr.c-hover #c-ring { width: 68px; height: 68px; background: rgba(184,151,58,.12); opacity: 1; box-shadow: 0 0 18px rgba(184,151,58,.35); }
+html.cr.c-hover #c-dot  { width: 7px; height: 7px; opacity: .8; }
+html.cr.c-click #c-dot  { width: 9px; height: 9px; }
+html.cr.c-click #c-ring { width: 32px; height: 32px; opacity: 1; }
 html.cr.c-out #c-dot,
 html.cr.c-out #c-ring   { opacity: 0 !important; transition: opacity .3s; }
 @media (pointer: coarse) { #c-dot, #c-ring { display: none !important; } }
