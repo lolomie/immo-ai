@@ -10,6 +10,8 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v={{ range(100000, 999999) | random }}">
 </head>
 <body>
+<div id="c-dot" aria-hidden="true"></div>
+<div id="c-ring" aria-hidden="true"></div>
 
 <nav id="mainNav">
   <a class="nav-logo" href="/"><span>Immo</span> AI</a>
@@ -170,6 +172,47 @@ function apiHeaders() {
   if (window.IMMOAI_KEY) h['X-Access-Key'] = window.IMMOAI_KEY;
   return h;
 }
+
+/* Premium Cursor — Dot + Ring */
+(function() {
+  if (window.matchMedia('(pointer: coarse)').matches) return;
+  const dot  = document.getElementById('c-dot');
+  const ring = document.getElementById('c-ring');
+  if (!dot || !ring) return;
+  const html = document.documentElement;
+  html.classList.add('cr');
+
+  let mx = -200, my = -200, rx = -200, ry = -200;
+  const HOVER_SEL = 'a, button, .btn, [onclick], select, input[type=submit], input[type=button], summary, label[for]';
+
+  document.addEventListener('mousemove', e => {
+    mx = e.clientX; my = e.clientY;
+    dot.style.left = (mx - dot.offsetWidth  / 2) + 'px';
+    dot.style.top  = (my - dot.offsetHeight / 2) + 'px';
+  });
+
+  document.addEventListener('mouseleave', () => html.classList.add('c-out'));
+  document.addEventListener('mouseenter', () => html.classList.remove('c-out'));
+
+  document.addEventListener('mouseover', e => {
+    if (e.target.closest(HOVER_SEL)) html.classList.add('c-hover');
+  });
+  document.addEventListener('mouseout', e => {
+    if (e.target.closest(HOVER_SEL)) html.classList.remove('c-hover');
+  });
+
+  document.addEventListener('mousedown', () => html.classList.add('c-click'));
+  document.addEventListener('mouseup',   () => html.classList.remove('c-click'));
+
+  (function loop() {
+    rx += (mx - rx) * .13;
+    ry += (my - ry) * .13;
+    const rh = ring.offsetWidth / 2;
+    ring.style.left = (rx - rh) + 'px';
+    ring.style.top  = (ry - rh) + 'px';
+    requestAnimationFrame(loop);
+  })();
+})();
 </script>
 
 </body>
