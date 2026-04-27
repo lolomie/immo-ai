@@ -27,7 +27,8 @@
       </div>
     </div>
     <div style="display:flex; gap:.625rem; flex-wrap:wrap; align-items:center;">
-      <a id="exportBtn" href="#" class="btn btn-outline btn-sm" onclick="exportJobs(event)">↓ Export</a>
+      <a href="#" class="btn btn-outline btn-sm" onclick="exportJobs(event,'zip')">↓ DOCX (ZIP)</a>
+      <a href="#" class="btn btn-outline btn-sm" onclick="exportJobs(event,'csv')">↓ CSV (Excel)</a>
       <button class="btn btn-outline btn-sm" onclick="loadJobs()">↻ Aktualisieren</button>
     </div>
   </div>
@@ -315,11 +316,12 @@ async function submitReview(jobId, action) {
   }
 }
 
-async function exportJobs(e) {
+async function exportJobs(e, fmt) {
   e.preventDefault();
   const status = document.getElementById('statusFilter').value;
+  const ext = fmt === 'csv' ? 'csv' : 'zip';
   try {
-    const res = await fetch(`/api/jobs/export?status=${status}`, {
+    const res = await fetch(`/api/jobs/export?status=${status}&format=${fmt}`, {
       headers: { 'X-Access-Key': window.IMMOAI_KEY || '' }
     });
     if (!res.ok) {
@@ -331,7 +333,7 @@ async function exportJobs(e) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `immo-ai-${status}.json`;
+    a.download = `immo-ai-${status}.${ext}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

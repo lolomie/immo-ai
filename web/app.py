@@ -109,13 +109,6 @@ def _save_job(job: JobResult, property_data=None):
         )
     except Exception as _e:
         app.logger.warning("DB job save failed: %s", _e)
-    # filesystem backup (local dev + backward compat)
-    try:
-        os.makedirs(LOGS_DIR, exist_ok=True)
-        with open(os.path.join(LOGS_DIR, f"{job.job_id}.json"), "w", encoding="utf-8") as _f:
-            json.dump(data, _f, ensure_ascii=False, indent=2)
-    except Exception:
-        pass
 
 
 def _load_job(job_id: str) -> dict | None:
@@ -127,10 +120,6 @@ def _load_job(job_id: str) -> dict | None:
             return json.loads(row["data"])
     except Exception:
         pass
-    path = os.path.join(LOGS_DIR, f"{job_id}.json")
-    if os.path.exists(path):
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
     return None
 
 
@@ -1180,21 +1169,7 @@ def api_jobs():
                 rows = _db_all("SELECT data FROM jobs WHERE status=? ORDER BY timestamp DESC", (status_filter,))
             jobs = [json.loads(r["data"]) for r in rows]
         except Exception as _e:
-            app.logger.warning("DB jobs read failed, falling back to filesystem: %s", _e)
-
-        # Fallback: filesystem (for jobs created before DB migration)
-        if not jobs and os.path.isdir(LOGS_DIR):
-            for fname in os.listdir(LOGS_DIR):
-                if not fname.endswith(".json"):
-                    continue
-                try:
-                    with open(os.path.join(LOGS_DIR, fname), "r", encoding="utf-8") as f:
-                        job = json.load(f)
-                except Exception:
-                    continue
-                if isinstance(job, dict) and (status_filter == "all" or job.get("status") == status_filter):
-                    jobs.append(job)
-            jobs.sort(key=lambda j: j.get("timestamp", "") or "", reverse=True)
+            app.logger.warning("DB jobs read failed: %s", _e)
 
         total = len(jobs)
         start = (page - 1) * limit
@@ -1255,9 +1230,10 @@ def api_job_download(job_id):
 @app.route("/api/jobs/export")
 @api_login_required
 def api_jobs_export():
-    """Export all approved jobs as a ZIP of DOCX files."""
+    """Export approved jobs as ZIP of DOCX files or CSV."""
     import zipfile
     import io as _io
+    import csv
     try:
         status_filter = request.args.get("status", "approved")
         fmt = request.args.get("format", "zip")
@@ -1271,29 +1247,23 @@ def api_jobs_export():
                 rows = _db_all("SELECT data FROM jobs WHERE status=? ORDER BY timestamp DESC", (status_filter,))
             jobs = [json.loads(r["data"]) for r in rows]
         except Exception as _e:
-            app.logger.warning("DB export fallback: %s", _e)
-
-        if not jobs and os.path.isdir(LOGS_DIR):
-            for fname in os.listdir(LOGS_DIR):
-                if not fname.endswith(".json"):
-                    continue
-                try:
-                    with open(os.path.join(LOGS_DIR, fname), "r", encoding="utf-8") as f:
-                        job = json.load(f)
-                    if isinstance(job, dict) and (status_filter == "all" or job.get("status") == status_filter):
-                        jobs.append(job)
-                except Exception:
-                    continue
-            jobs.sort(key=lambda j: j.get("timestamp", "") or "", reverse=True)
+            app.logger.warning("DB export failed: %s", _e)
 
         if not jobs:
             return jsonify({"error": f"Keine Jobs mit Status '{status_filter}' gefunden"}), 404
 
-        if fmt == "json":
+        if fmt == "csv":
+            buf = _io.StringIO()
+            fields = ["job_id", "property_id", "address", "city", "zip_code", "property_type",
+                      "size_sqm", "rooms", "purchase_price", "monthly_rent", "year_built",
+                      "energy_class", "status", "reviewed_by", "timestamp", "expose_text"]
+            writer = csv.DictWriter(buf, fieldnames=fields, extrasaction="ignore", delimiter=";")
+            writer.writeheader()
+            writer.writerows(jobs)
             return Response(
-                json.dumps(jobs, ensure_ascii=False, indent=2),
-                mimetype="application/json",
-                headers={"Content-Disposition": f"attachment; filename=immo-ai-{status_filter}.json"},
+                "﻿" + buf.getvalue(),  # BOM für Excel
+                mimetype="text/csv; charset=utf-8",
+                headers={"Content-Disposition": f"attachment; filename=immo-ai-{status_filter}.csv"},
             )
 
         # Build ZIP with DOCX per job
@@ -1358,13 +1328,6 @@ def api_patch_job(job_id):
     if "expose_text" in data:
         job["expose_text"] = str(data["expose_text"])
     _update_job_in_db(job_id, {"expose_text": job["expose_text"]})
-    try:
-        path = os.path.join(LOGS_DIR, f"{job_id}.json")
-        if os.path.exists(path):
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(job, f, ensure_ascii=False, indent=2)
-    except Exception:
-        pass
     return jsonify({"ok": True})
 
 
@@ -1462,14 +1425,6 @@ def api_review(job_id):
         return jsonify({"error": "Ungültige Aktion"}), 400
 
     _update_job_in_db(job_id, {"status": job["status"]})
-    try:
-        path = os.path.join(LOGS_DIR, f"{job_id}.json")
-        if os.path.exists(path):
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(job, f, ensure_ascii=False, indent=2)
-    except Exception:
-        pass
-
     app.logger.info("Job %s %sd by %s", job_id, action, reviewer)
 
     response = {"ok": True, "status": job["status"]}
