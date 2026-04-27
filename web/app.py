@@ -82,6 +82,42 @@ except Exception as _db_err:
     app.logger.error("DB init failed: %s", _db_err)
 
 
+def _migrate_log_jobs_to_db() -> None:
+    """Import any leftover job JSON files from logs/ into the DB. Runs once at startup."""
+    if not os.path.isdir(LOGS_DIR):
+        return
+    from src.db import execute as _db_exec, fetchone as _db_fetch
+    imported = 0
+    for fname in os.listdir(LOGS_DIR):
+        if not fname.endswith(".json"):
+            continue
+        path = os.path.join(LOGS_DIR, fname)
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                job = json.load(f)
+            if not isinstance(job, dict) or not job.get("job_id"):
+                continue
+            if _db_fetch("SELECT 1 FROM jobs WHERE job_id=?", (job["job_id"],)):
+                continue  # already in DB
+            _db_exec(
+                "INSERT INTO jobs (job_id, timestamp, status, created_by, data, updated_at)"
+                " VALUES (?, ?, ?, ?, ?, datetime('now'))",
+                (job["job_id"], job.get("timestamp", ""), job.get("status", "pending"),
+                 job.get("created_by", ""), json.dumps(job, ensure_ascii=False)),
+            )
+            imported += 1
+        except Exception as _e:
+            app.logger.warning("Log migration skipped %s: %s", fname, _e)
+    if imported:
+        app.logger.info("Migrated %d job(s) from logs/ into DB.", imported)
+
+
+try:
+    _migrate_log_jobs_to_db()
+except Exception as _m_err:
+    app.logger.warning("Log job migration failed: %s", _m_err)
+
+
 def _parse_property(data: dict):
     if not data.get("property_id"):
         data["property_id"] = "WEB-" + str(uuid.uuid4())[:6].upper()
